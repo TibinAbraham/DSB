@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Maker Checker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card">
+        <h1>Maker-Checker Approvals</h1>
+        <p class="subtitle">Review and approve pending changes.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Request ID</th>
+                <th>Type</th>
+                <th>Maker</th>
+                <th>Vendor Name</th>
+                <th>Vendor Code</th>
+                <th>Bank Store Code</th>
+                <th>Customer ID</th>
+                <th>Customer Name</th>
+                <th>Account No</th>
+                <th>Effective From</th>
+                <th>Maker Comment</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th>History</th>
+                <th>Checker Comment</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="approval-rows"></tbody>
+          </table>
+        </div>
+        <p class="form-message" id="approval-message"></p>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=2"></script>
+    <script src="approvals.js?v=9"></script>
+  </body>
+</html>

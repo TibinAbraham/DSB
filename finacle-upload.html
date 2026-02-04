@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Finacle Upload</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="upload-card" aria-labelledby="finacle-title">
+        <header class="card-header">
+          <h1 id="finacle-title">Finacle MIS Upload</h1>
+          <p class="subtitle">Upload Finacle MIS Excel file for T+1 data.</p>
+        </header>
+
+        <form id="finacle-upload-form" class="card-form" novalidate>
+          <label class="field">
+            <span class="label">MIS Date (T+1)</span>
+            <input type="date" name="misDate" required />
+          </label>
+          <label class="field">
+            <span class="label">Finacle MIS File (Excel)</span>
+            <input type="file" name="finacleMis" accept=".xlsx,.xls" required />
+          </label>
+          <button type="submit" class="primary-btn">Upload Finacle MIS</button>
+          <p class="form-message" id="finacle-message" role="status" aria-live="polite"></p>
+        </form>
+
+        <section class="table-wrapper preview" aria-labelledby="finacle-preview-title">
+          <h2 id="finacle-preview-title">Preview (full sheet)</h2>
+          <p class="form-message" id="finacle-preview-message"></p>
+          <table>
+            <thead id="finacle-preview-head"></thead>
+            <tbody id="finacle-preview-body"></tbody>
+          </table>
+        </section>
+
+        <section class="table-wrapper" aria-labelledby="finacle-history-title">
+          <h2 id="finacle-history-title">Previous Uploads</h2>
+          <p class="subtitle">Preview, download, or delete previous uploads.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>MIS Date</th>
+                <th>File Name</th>
+                <th>Uploaded By</th>
+                <th>Uploaded At</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="finacle-history-rows"></tbody>
+          </table>
+          <p class="form-message" id="finacle-history-message"></p>
+        </section>
+
+        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="finacle-upload.js?v=5"></script>
+  </body>
+</html>

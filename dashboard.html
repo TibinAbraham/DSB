@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card">
+        <h1>Dashboard</h1>
+        <p class="subtitle">Quick access to core operations.</p>
+
+        <div class="card-grid">
+          <a class="nav-card" data-page="finacle-upload" href="finacle-upload.html">
+            Finacle Upload
+          </a>
+          <a class="nav-card" data-page="vendor-upload" href="vendor-upload.html">
+            Vendor Upload
+          </a>
+          <a class="nav-card" data-page="mapping" href="mapping.html">
+            Store Mapping
+          </a>
+          <a class="nav-card" data-page="vendor-onboarding" href="vendor-onboarding.html">
+            Vendor Onboarding
+          </a>
+          <a class="nav-card" data-page="reconciliation" href="reconciliation.html">
+            Reconciliation
+          </a>
+          <a class="nav-card" data-page="reconciliation-results" href="reconciliation-results.html">
+            Daily Reconciliation Results
+          </a>
+          <a class="nav-card" data-page="approvals" href="approvals.html">
+            Maker-Checker
+          </a>
+          <a class="nav-card" data-page="masters" href="masters.html">
+            Master Configuration
+          </a>
+          <a class="nav-card" data-page="reports" href="reports.html">Reports</a>
+          <a class="nav-card" data-page="admin-tools" href="admin-tools.html">Admin Tools</a>
+        </div>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=4"></script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Uploads Hub</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="upload-card">
+        <h1>Uploads Hub</h1>
+        <p class="subtitle">Choose the upload flow.</p>
+
+        <div class="card-grid">
+          <a class="nav-card" data-page="finacle-upload" href="finacle-upload.html">
+            Finacle MIS Upload
+          </a>
+          <a class="nav-card" data-page="vendor-upload" href="vendor-upload.html">
+            Vendor MIS Upload
+          </a>
+          <a class="nav-card" data-page="mapping" href="mapping.html">
+            Store Mapping (One Time)
+          </a>
+          <a class="nav-card" data-page="reconciliation" href="reconciliation.html">
+            Reconciliation
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

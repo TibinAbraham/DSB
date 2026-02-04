@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Store Mapping</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card" aria-labelledby="mapping-title">
+        <header class="card-header">
+          <p class="brand">Doorstep Banking</p>
+          <h1 id="mapping-title">Store Mapping (One Time)</h1>
+          <p class="subtitle">
+            Map vendor store codes to bank store codes and customer details.
+          </p>
+        </header>
+
+        <form id="mapping-form" class="card-form" novalidate>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th>Vendor Store Code</th>
+                  <th>Bank Store Code</th>
+                  <th>Customer ID</th>
+                  <th>Customer Name</th>
+                  <th>Account No</th>
+                  <th>Effective From</th>
+                </tr>
+              </thead>
+              <tbody id="mapping-rows"></tbody>
+            </table>
+          </div>
+
+          <div class="button-row">
+            <button type="button" class="secondary-btn" id="add-row" onclick="addMappingRow()">
+              Add Row
+            </button>
+            <button type="submit" class="primary-btn">Save Mapping</button>
+          </div>
+
+          <label class="field">
+            <span class="label">Maker Comment</span>
+            <textarea
+              name="makerComment"
+              rows="3"
+              placeholder="Enter maker comment for checker"
+              required
+            ></textarea>
+          </label>
+
+          <p id="mapping-message" class="form-message" role="status" aria-live="polite"></p>
+        </form>
+
+        <div class="table-wrapper">
+          <h2>Existing Mappings</h2>
+            <table>
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>Vendor Store Code</th>
+                <th>Bank Store Code</th>
+                <th>Customer ID</th>
+                <th>Customer Name</th>
+                <th>Account No</th>
+                <th>Effective From</th>
+                <th>Status</th>
+                  <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="mapping-list-rows"></tbody>
+          </table>
+        </div>
+
+        <div class="table-wrapper">
+          <h2>Clarifications</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Request ID</th>
+                <th>Status</th>
+                <th>Maker Comment</th>
+                <th>Checker Comment</th>
+                <th>History</th>
+                <th>Maker Reply</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="clarification-rows"></tbody>
+          </table>
+          <p class="form-message" id="clarification-message"></p>
+        </div>
+
+        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=2"></script>
+    <script src="mapping.js?v=11"></script>
+  </body>
+</html>

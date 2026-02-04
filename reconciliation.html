@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Reconciliation</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card" aria-labelledby="recon-title">
+        <header class="card-header">
+          <p class="brand">Doorstep Banking</p>
+          <h1 id="recon-title">Daily Reconciliation</h1>
+          <p class="subtitle">Compare Vendor MIS vs Finacle MIS uploads.</p>
+        </header>
+
+        <label class="field">
+          <span class="label">MIS Date</span>
+          <input type="date" id="recon-mis-date" required />
+        </label>
+        <div class="inline-actions">
+          <button class="primary-btn" id="run-recon">Run Reconciliation</button>
+          <button class="secondary-btn" id="download-recon" disabled hidden>Download Report</button>
+        </div>
+        <p id="recon-message" class="form-message" role="status" aria-live="polite"></p>
+
+        <div class="table-wrapper" id="recon-table-wrapper" aria-live="polite"></div>
+
+        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=2"></script>
+    <script src="reconciliation.js?v=7"></script>
+  </body>
+</html>

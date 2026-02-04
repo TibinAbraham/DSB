@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Remittances</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card">
+        <h1>Remittance Lifecycle</h1>
+        <p class="subtitle">Track and approve remittance entries.</p>
+
+        <form id="remittance-init-form" class="card-form">
+          <textarea name="canonicalIds" rows="3" placeholder="Canonical IDs (comma-separated)" required></textarea>
+          <button class="primary-btn" type="submit">Initialize Remittances</button>
+          <p class="form-message" id="remittance-init-message"></p>
+        </form>
+
+        <form id="remittance-action-form" class="card-form">
+          <input type="number" name="remittanceId" placeholder="Remittance ID" required />
+          <select name="action" required>
+            <option value="VALIDATE">VALIDATE</option>
+            <option value="APPROVE">APPROVE</option>
+            <option value="REJECT">REJECT</option>
+            <option value="CLOSE">CLOSE</option>
+          </select>
+          <input type="text" name="reason" placeholder="Rejection reason (if any)" />
+          <button class="primary-btn" type="submit">Submit Action</button>
+          <p class="form-message" id="remittance-action-message"></p>
+        </form>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Remittance ID</th>
+                <th>Canonical ID</th>
+                <th>Source</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="remittance-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js"></script>
+    <script src="remittances.js"></script>
+  </body>
+</html>

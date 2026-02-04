@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Admin Tools</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card">
+        <h1>Admin Tools</h1>
+        <p class="subtitle">
+          Dangerous actions. Clear data only when needed for testing. This cannot be undone.
+        </p>
+
+        <form id="admin-cleanup-form" class="card-form" novalidate>
+          <label class="field">
+            <span class="label">Select data to clear</span>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" name="targets" value="VENDORS_STORES" /> Vendors & Stores</label>
+              <label><input type="checkbox" name="targets" value="MASTERS" /> Master Configs</label>
+              <label><input type="checkbox" name="targets" value="UPLOADS" /> Uploads (Finacle/Vendor)</label>
+              <label><input type="checkbox" name="targets" value="TRANSACTIONS" /> Transactions</label>
+              <label><input type="checkbox" name="targets" value="RECONCILIATION" /> Reconciliation & Exceptions</label>
+              <label><input type="checkbox" name="targets" value="APPROVALS" /> Approvals</label>
+            </div>
+          </label>
+
+          <label class="field">
+            <span class="label">Reason</span>
+            <textarea name="reason" rows="3" placeholder="Reason for cleanup" required></textarea>
+          </label>
+
+          <label class="field">
+            <span class="label">Type CONFIRM to proceed</span>
+            <input type="text" name="confirm" placeholder="CONFIRM" required />
+          </label>
+
+          <button class="primary-btn" type="submit">Clear Selected Data</button>
+          <p class="form-message" id="admin-cleanup-message"></p>
+          <pre class="code-block" id="admin-cleanup-result"></pre>
+        </form>
+
+        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=2"></script>
+    <script src="admin-tools.js?v=1"></script>
+  </body>
+</html>

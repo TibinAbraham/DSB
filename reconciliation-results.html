@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Reconciliation Results</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card" aria-labelledby="results-title">
+        <header class="card-header">
+          <p class="brand">Doorstep Banking</p>
+          <h1 id="results-title">Daily Reconciliation Results</h1>
+          <p class="subtitle">View stored reconciliation results by MIS date.</p>
+        </header>
+
+        <label class="field">
+          <span class="label">MIS Date</span>
+          <input type="date" id="results-mis-date" required />
+        </label>
+        <div class="inline-actions">
+          <button class="primary-btn" id="load-results">Load Results</button>
+          <button class="secondary-btn" id="download-results" disabled hidden>
+            Download Report
+          </button>
+        </div>
+        <p id="results-message" class="form-message" role="status" aria-live="polite"></p>
+
+        <div class="table-wrapper" id="results-table-wrapper" aria-live="polite"></div>
+
+        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="reconciliation-results.js?v=3"></script>
+  </body>
+</html>

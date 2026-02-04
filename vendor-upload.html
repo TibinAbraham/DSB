@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Vendor Upload</title>
+    <link rel="stylesheet" href="styles.css?v=3" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="upload-card" aria-labelledby="vendor-title">
+        <header class="card-header">
+          <h1 id="vendor-title">Vendor MIS Upload</h1>
+          <p class="subtitle">Upload vendor MIS Excel file.</p>
+        </header>
+
+        <form id="vendor-upload-form" class="card-form" novalidate>
+          <label class="field">
+            <span class="label">Vendor Name</span>
+            <select id="vendor-name" name="vendorName" required>
+              <option value="">Select vendor</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">MIS Date (T+1)</span>
+            <input type="date" name="misDate" required />
+          </label>
+          <label class="field">
+            <span class="label">Vendor MIS File (Excel)</span>
+            <input type="file" name="vendorMis" accept=".xlsx,.xls" required />
+          </label>
+          <div class="button-row">
+            <button type="button" class="secondary-btn" id="vendor-validate">Validate File</button>
+            <button type="submit" class="primary-btn">Upload Vendor MIS</button>
+          </div>
+          <p class="form-message" id="vendor-message" role="status" aria-live="polite"></p>
+          <p class="form-message" id="vendor-validate-message" role="status" aria-live="polite"></p>
+        </form>
+
+        <section class="table-wrapper preview" aria-labelledby="vendor-preview-title">
+          <h2 id="vendor-preview-title">Preview (full sheet)</h2>
+          <p class="form-message" id="vendor-preview-message"></p>
+          <table>
+            <thead id="vendor-preview-head"></thead>
+            <tbody id="vendor-preview-body"></tbody>
+          </table>
+        </section>
+
+        <section class="table-wrapper" aria-labelledby="vendor-history-title">
+          <h2 id="vendor-history-title">Previous Uploads</h2>
+          <p class="subtitle">Preview or download previously uploaded files.</p>
+          <label class="field">
+            <span class="label">Filter by Vendor</span>
+            <select id="vendor-history-filter">
+              <option value="">All vendors</option>
+            </select>
+          </label>
+          <table>
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Vendor</th>
+                <th>MIS Date</th>
+                <th>File Name</th>
+                <th>Uploaded By</th>
+                <th>Uploaded At</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vendor-history-rows"></tbody>
+          </table>
+          <p class="form-message" id="vendor-history-message"></p>
+        </section>
+
+        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="vendor-upload.js?v=14"></script>
+  </body>
+</html>

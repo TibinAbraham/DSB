@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Exceptions</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card">
+        <h1>Exception Management</h1>
+        <p class="subtitle">Review and resolve reconciliation exceptions.</p>
+
+        <form id="exception-form" class="card-form">
+          <input type="number" name="reconId" placeholder="Reconciliation ID" required />
+          <input type="text" name="exceptionType" placeholder="Exception type" required />
+          <input type="text" name="details" placeholder="Details" />
+          <button class="primary-btn" type="submit">Create Exception</button>
+          <p class="form-message" id="exception-message"></p>
+        </form>
+
+        <form id="exception-resolution-form" class="card-form">
+          <input type="number" name="exceptionId" placeholder="Exception ID" required />
+          <select name="proposedStatus" required>
+            <option value="RESOLVED">RESOLVED</option>
+            <option value="ESCALATED">ESCALATED</option>
+          </select>
+          <input type="text" name="remarks" placeholder="Remarks" />
+          <button class="primary-btn" type="submit">Request Resolution</button>
+          <p class="form-message" id="exception-resolution-message"></p>
+        </form>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Exception ID</th>
+                <th>Recon ID</th>
+                <th>Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="exception-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js"></script>
+    <script src="exceptions.js"></script>
+  </body>
+</html>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doorstep Banking - Vendor Onboarding</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Doorstep Banking</div>
+      <div class="topbar-actions">
+        <span class="user-badge" data-user-badge></span>
+        <button class="secondary-btn" data-logout>Logout</button>
+      </div>
+    </header>
+
+    <main class="page page-wide">
+      <section class="recon-card">
+        <h1>Vendor Onboarding</h1>
+        <p class="subtitle">Add and maintain vendor master list.</p>
+
+        <form id="vendor-form" class="card-form" novalidate>
+          <label class="field">
+            <span class="label">Vendor Name</span>
+            <input type="text" name="vendorName" placeholder="Vendor name" required />
+          </label>
+          <label class="field">
+            <span class="label">Vendor Code</span>
+            <input type="text" name="vendorCode" placeholder="Vendor code" required />
+          </label>
+          <label class="field">
+            <span class="label">Effective From</span>
+            <input type="date" name="effectiveFrom" required />
+          </label>
+          <label class="field">
+            <span class="label">Maker Comment</span>
+            <textarea
+              name="makerComment"
+              rows="3"
+              placeholder="Enter maker comment for checker"
+              required
+            ></textarea>
+          </label>
+          <button type="submit" class="primary-btn">Add Vendor</button>
+          <p class="form-message" id="vendor-message" role="status" aria-live="polite"></p>
+        </form>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Vendor Name</th>
+                <th>Vendor Code</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="vendor-rows"></tbody>
+          </table>
+        </div>
+
+        <div class="table-wrapper">
+          <h2>Clarifications</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Request ID</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Maker Comment</th>
+                <th>Checker Comment</th>
+                <th>History</th>
+                <th>Maker Reply</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="clarification-rows"></tbody>
+          </table>
+          <p class="form-message" id="clarification-message"></p>
+        </div>
+
+        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
+      </section>
+    </main>
+
+    <script src="config.js?v=1"></script>
+    <script src="app.js?v=2"></script>
+    <script src="vendor-onboarding.js?v=9"></script>
+  </body>
+</html>
