@@ -77,6 +77,10 @@ h1 {
   display: none;
 }
 
+.report-group.hidden {
+  display: none;
+}
+
 .card-form {
   display: grid;
   gap: 16px;

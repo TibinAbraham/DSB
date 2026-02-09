@@ -59,6 +59,25 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | None:
+    # === AD/LDAP login example (comment only) ===
+    # Replace the local password check with an AD bind, e.g.:
+    #
+    # def ad_bind_ok(employee_id: str, password: str) -> bool:
+    #     # Example only: use ldap3 or ldap3 + TLS as per bank policy
+    #     # server = Server("ldap://10.x.x.x", get_info=ALL)
+    #     # conn = Connection(server, user=f"DOMAIN\\{employee_id}", password=password, auto_bind=True)
+    #     # return conn.bound
+    #     return True
+    #
+    # if not ad_bind_ok(employee_id, password):
+    #     return None
+    #
+    # After AD auth, fetch the user's role from local DB (user_account):
+    # user = db.query(UserAccount).filter(UserAccount.employee_id == employee_id).first()
+    # if not user or user.status != "ACTIVE":
+    #     return None
+    # return AuthUser(employee_id=user.employee_id, name=user.full_name, role=user.role_code)
+    # === end example ===
     user = (
         db.query(UserAccount)
         .filter(UserAccount.employee_id == employee_id)
