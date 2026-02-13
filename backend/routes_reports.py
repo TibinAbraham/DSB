@@ -2,17 +2,25 @@ import csv
 import io
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import StreamingResponse
+import pandas as pd
 
 from auth import AuthUser, require_roles
 from audit import log_audit
 from db import SessionLocal
 from models import (
+    ApprovalRequest,
     AuditLog,
+    BankStoreMaster,
+    CanonicalTransaction,
     CustomerChargeSummary,
     ExceptionRecord,
+    ReconciliationCorrection,
     ReconciliationResult,
     VendorChargeSummary,
+    VendorMaster,
+    VendorStoreMappingMaster,
 )
 
 
@@ -174,3 +182,412 @@ def audit_logs(user: AuthUser = Depends(require_roles("ADMIN", "AUDITOR"))):
     db.commit()
     db.close()
     return _csv_response("audit-logs.csv", rows)
+
+
+@router.get("/vendor-pickups")
+def _vendor_pickups_rows(db, vendor_id: int, from_dt, to_dt):
+    vendor = db.query(VendorMaster).filter(VendorMaster.vendor_id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    rows = [
+        {
+            "Vendor Name": vendor.vendor_name,
+            "Bank Store Code": "",
+            "Store Name": "",
+            "Vendor Store Code": "",
+            "Pickup Date": "",
+            "Pickup Amount": "",
+            "Pickup Type": "",
+            "Account No": "",
+            "Customer ID": "",
+        }
+    ]
+
+    txns = (
+        db.query(CanonicalTransaction)
+        .filter(CanonicalTransaction.source == "VENDOR")
+        .filter(CanonicalTransaction.pickup_date >= from_dt)
+        .filter(CanonicalTransaction.pickup_date <= to_dt)
+        .all()
+    )
+
+    rows = []
+    for txn in txns:
+        mapping = (
+            db.query(VendorStoreMappingMaster)
+            .filter(VendorStoreMappingMaster.vendor_id == vendor_id)
+            .filter(VendorStoreMappingMaster.vendor_store_code == txn.vendor_store_code)
+            .filter(VendorStoreMappingMaster.bank_store_code == txn.bank_store_code)
+            .filter(VendorStoreMappingMaster.status == "ACTIVE")
+            .filter(VendorStoreMappingMaster.effective_from <= txn.pickup_date)
+            .filter(
+                (VendorStoreMappingMaster.effective_to.is_(None))
+                | (VendorStoreMappingMaster.effective_to >= txn.pickup_date)
+            )
+            .first()
+        )
+        if not mapping:
+            continue
+
+        store_row = (
+            db.query(BankStoreMaster.store_name)
+            .filter(BankStoreMaster.bank_store_code == txn.bank_store_code)
+            .filter(BankStoreMaster.status == "ACTIVE")
+            .filter(BankStoreMaster.effective_from <= txn.pickup_date)
+            .filter(
+                (BankStoreMaster.effective_to.is_(None))
+                | (BankStoreMaster.effective_to >= txn.pickup_date)
+            )
+            .first()
+        )
+        store_name = store_row[0] if store_row else ""
+
+        rows.append(
+            {
+                "Vendor Name": vendor.vendor_name,
+                "Bank Store Code": txn.bank_store_code,
+                "Store Name": store_name,
+                "Vendor Store Code": txn.vendor_store_code or "",
+                "Pickup Date": str(txn.pickup_date) if txn.pickup_date else "",
+                "Pickup Amount": str(txn.pickup_amount) if txn.pickup_amount is not None else "",
+                "Pickup Type": txn.pickup_type or "",
+                "Account No": txn.account_no or "",
+                "Customer ID": txn.customer_id or "",
+            }
+        )
+    return vendor, rows
+
+
+def vendor_pickups(
+    vendor_id: int,
+    from_date: str,
+    to_date: str,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        db.close()
+        raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
+
+    vendor, rows = _vendor_pickups_rows(db, vendor_id, from_dt, to_dt)
+
+    df = pd.DataFrame(rows)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Vendor Pickups")
+    output.seek(0)
+
+    log_audit(
+        db,
+        "REPORT",
+        "VENDOR_PICKUPS",
+        "DOWNLOAD",
+        None,
+        f"vendor_id={vendor_id},from={from_date},to={to_date}",
+        user.employee_id,
+    )
+    db.commit()
+    db.close()
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="vendor-pickups.xlsx"'},
+    )
+
+
+@router.get("/vendor-pickups/preview")
+def vendor_pickups_preview(
+    vendor_id: int,
+    from_date: str,
+    to_date: str,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        db.close()
+        raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
+
+    _, rows = _vendor_pickups_rows(db, vendor_id, from_dt, to_dt)
+    db.close()
+    return rows[:50]
+
+
+@router.get("/customers")
+def list_customers(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR"))):
+    db = SessionLocal()
+    rows = (
+        db.query(VendorStoreMappingMaster.customer_id, VendorStoreMappingMaster.customer_name)
+        .filter(VendorStoreMappingMaster.customer_id.is_not(None))
+        .distinct()
+        .all()
+    )
+    payload = [
+        {"customer_id": row[0], "customer_name": row[1] or ""} for row in rows if row and row[0]
+    ]
+    db.close()
+    return payload
+
+
+def _customer_pickups_rows(db, customer_id: str, from_dt, to_dt):
+    rows = []
+    txns = (
+        db.query(CanonicalTransaction)
+        .filter(CanonicalTransaction.source == "VENDOR")
+        .filter(CanonicalTransaction.pickup_date >= from_dt)
+        .filter(CanonicalTransaction.pickup_date <= to_dt)
+        .all()
+    )
+
+    for txn in txns:
+        mapping = (
+            db.query(VendorStoreMappingMaster, VendorMaster)
+            .join(VendorMaster, VendorStoreMappingMaster.vendor_id == VendorMaster.vendor_id)
+            .filter(VendorStoreMappingMaster.customer_id == customer_id)
+            .filter(VendorStoreMappingMaster.vendor_store_code == txn.vendor_store_code)
+            .filter(VendorStoreMappingMaster.bank_store_code == txn.bank_store_code)
+            .filter(VendorStoreMappingMaster.status == "ACTIVE")
+            .filter(VendorStoreMappingMaster.effective_from <= txn.pickup_date)
+            .filter(
+                (VendorStoreMappingMaster.effective_to.is_(None))
+                | (VendorStoreMappingMaster.effective_to >= txn.pickup_date)
+            )
+            .first()
+        )
+        if not mapping:
+            continue
+        mapping_row, vendor = mapping
+
+        store_row = (
+            db.query(BankStoreMaster.store_name)
+            .filter(BankStoreMaster.bank_store_code == txn.bank_store_code)
+            .filter(BankStoreMaster.status == "ACTIVE")
+            .filter(BankStoreMaster.effective_from <= txn.pickup_date)
+            .filter(
+                (BankStoreMaster.effective_to.is_(None))
+                | (BankStoreMaster.effective_to >= txn.pickup_date)
+            )
+            .first()
+        )
+        store_name = store_row[0] if store_row else ""
+
+        rows.append(
+            {
+                "Customer ID": mapping_row.customer_id or "",
+                "Customer Name": mapping_row.customer_name or "",
+                "Vendor Name": vendor.vendor_name,
+                "Bank Store Code": txn.bank_store_code,
+                "Store Name": store_name,
+                "Vendor Store Code": txn.vendor_store_code or "",
+                "Pickup Date": str(txn.pickup_date) if txn.pickup_date else "",
+                "Pickup Amount": str(txn.pickup_amount) if txn.pickup_amount is not None else "",
+                "Pickup Type": txn.pickup_type or "",
+                "Account No": txn.account_no or "",
+            }
+        )
+    return rows
+
+
+@router.get("/customer-pickups")
+def customer_pickups(
+    customer_id: str,
+    from_date: str,
+    to_date: str,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        db.close()
+        raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
+
+    rows = _customer_pickups_rows(db, customer_id, from_dt, to_dt)
+    df = pd.DataFrame(rows)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Customer Pickups")
+    output.seek(0)
+
+    log_audit(
+        db,
+        "REPORT",
+        "CUSTOMER_PICKUPS",
+        "DOWNLOAD",
+        None,
+        f"customer_id={customer_id},from={from_date},to={to_date}",
+        user.employee_id,
+    )
+    db.commit()
+    db.close()
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="customer-pickups.xlsx"'},
+    )
+
+
+@router.get("/customer-pickups/preview")
+def customer_pickups_preview(
+    customer_id: str,
+    from_date: str,
+    to_date: str,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        db.close()
+        raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
+
+    rows = _customer_pickups_rows(db, customer_id, from_dt, to_dt)
+    db.close()
+    return rows[:50]
+
+
+def _recon_final_rows(db, from_dt, to_dt):
+    results = (
+        db.query(ReconciliationResult)
+        .filter(
+            (
+                (ReconciliationResult.pickup_date >= from_dt)
+                & (ReconciliationResult.pickup_date <= to_dt)
+            )
+            | (
+                (ReconciliationResult.remittance_date >= from_dt)
+                & (ReconciliationResult.remittance_date <= to_dt)
+            )
+        )
+        .order_by(ReconciliationResult.created_date.desc())
+        .all()
+    )
+
+    latest_status = {}
+    correction_rows = (
+        db.query(ReconciliationCorrection, ApprovalRequest)
+        .join(ApprovalRequest, ApprovalRequest.approval_id == ReconciliationCorrection.approval_id)
+        .order_by(ReconciliationCorrection.created_date.desc())
+        .all()
+    )
+    for correction, approval in correction_rows:
+        if correction.recon_id not in latest_status:
+            latest_status[correction.recon_id] = approval.status
+
+    rows = []
+    for item in results:
+        status = latest_status.get(item.recon_id)
+        if status and status != "APPROVED":
+            continue
+
+        date_key = item.remittance_date or item.pickup_date
+        store_row = (
+            db.query(BankStoreMaster.store_name)
+            .filter(BankStoreMaster.bank_store_code == item.bank_store_code)
+            .filter(BankStoreMaster.status == "ACTIVE")
+            .filter(BankStoreMaster.effective_from <= date_key)
+            .filter(
+                (BankStoreMaster.effective_to.is_(None))
+                | (BankStoreMaster.effective_to >= date_key)
+            )
+            .first()
+        )
+        store_name = store_row[0] if store_row else ""
+
+        vendor_rows = (
+            db.query(VendorMaster.vendor_name)
+            .join(
+                VendorStoreMappingMaster,
+                VendorStoreMappingMaster.vendor_id == VendorMaster.vendor_id,
+            )
+            .filter(VendorStoreMappingMaster.bank_store_code == item.bank_store_code)
+            .filter(VendorStoreMappingMaster.status == "ACTIVE")
+            .filter(VendorStoreMappingMaster.effective_from <= date_key)
+            .filter(
+                (VendorStoreMappingMaster.effective_to.is_(None))
+                | (VendorStoreMappingMaster.effective_to >= date_key)
+            )
+            .all()
+        )
+        vendor_names = ", ".join(sorted({row[0] for row in vendor_rows if row and row[0]}))
+
+        rows.append(
+            {
+                "Bank Store Code": item.bank_store_code,
+                "Store Name": store_name,
+                "Vendor Names": vendor_names,
+                "Pickup Date": str(item.pickup_date) if item.pickup_date else "",
+                "Pickup Amount": str(item.pickup_amount) if item.pickup_amount is not None else "",
+                "Remittance Date": str(item.remittance_date) if item.remittance_date else "",
+                "Remittance Amount": str(item.remittance_amount) if item.remittance_amount is not None else "",
+                "Status": item.status,
+                "Reason": item.reason or "",
+            }
+        )
+    return rows
+
+
+@router.get("/reconciliation-final")
+def reconciliation_final(
+    from_date: str,
+    to_date: str,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        db.close()
+        raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
+
+    rows = _recon_final_rows(db, from_dt, to_dt)
+    df = pd.DataFrame(rows)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Reconciliation Final")
+    output.seek(0)
+
+    log_audit(
+        db,
+        "REPORT",
+        "RECON_FINAL",
+        "DOWNLOAD",
+        None,
+        f"from={from_date},to={to_date}",
+        user.employee_id,
+    )
+    db.commit()
+    db.close()
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="reconciliation-final.xlsx"'},
+    )
+
+
+@router.get("/reconciliation-final/preview")
+def reconciliation_final_preview(
+    from_date: str,
+    to_date: str,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        db.close()
+        raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
+
+    rows = _recon_final_rows(db, from_dt, to_dt)
+    db.close()
+    return rows[:50]

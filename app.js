@@ -24,6 +24,7 @@ const roleConfig = {
     "reconciliation-results",
     "approvals",
     "masters",
+    "charges",
     "reports",
     "admin-tools",
   ],
