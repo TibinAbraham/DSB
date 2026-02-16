@@ -18,11 +18,203 @@
     <main class="page page-wide">
       <section class="recon-card">
         <h1>Charges</h1>
-        <p class="subtitle">Configure vendor and customer charge settings.</p>
+        <p class="subtitle">
+          Compute and configure vendor and customer charges. Each section contains charge calculation and its configuration.
+        </p>
 
-        <div class="card-grid">
-          <a class="nav-card" href="masters.html">Vendor Charges</a>
-          <a class="nav-card" href="masters.html">Customer Charges</a>
+        <div class="charge-tabs">
+          <button class="secondary-btn charge-tab active" data-tab="vendor">Vendor Charges</button>
+          <button class="secondary-btn charge-tab" data-tab="customer">Customer Charges</button>
+        </div>
+
+        <!-- ========== VENDOR CHARGES SECTION ========== -->
+        <div class="charge-panel active" id="vendor-panel">
+          <h2>Vendor Charges</h2>
+
+          <div class="charge-subsection">
+            <h3>Compute & View</h3>
+            <div class="charge-controls">
+              <label class="field">
+                <span class="label">Month (YYYYMM)</span>
+                <input type="text" id="charge-month-vendor" placeholder="e.g. 202501" maxlength="6" />
+              </label>
+              <button class="primary-btn" id="compute-vendor-btn">Compute Vendor Charges</button>
+              <button class="secondary-btn" id="refresh-vendor">Refresh</button>
+            </div>
+            <p class="form-message" id="charge-vendor-message"></p>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Month</th>
+                    <th>Beat</th>
+                    <th>Call</th>
+                    <th>Base (₹)</th>
+                    <th>Enhancement (₹)</th>
+                    <th>Tax (₹)</th>
+                    <th>Total (₹)</th>
+                    <th>Computed By</th>
+                  </tr>
+                </thead>
+                <tbody id="vendor-charge-rows"></tbody>
+              </table>
+            </div>
+            <p class="form-message" id="vendor-charge-message"></p>
+          </div>
+
+          <div class="charge-subsection">
+            <h3>Vendor Charge Configuration</h3>
+            <p class="subtitle">Configure base charge per vendor and pickup type (Beat/Call). Pickup rules define free Call limit.</p>
+            <div class="config-grid">
+              <div class="config-block">
+                <h4>Vendor Charge Master</h4>
+                <form id="vendor-charge-form" class="card-form">
+                  <label class="field">
+                    <span class="label">Vendor</span>
+                    <select id="vendor-charge-vendor" name="vendorId" required>
+                      <option value="">Select vendor</option>
+                    </select>
+                  </label>
+                  <select name="pickupType" required>
+                    <option value="BEAT">BEAT</option>
+                    <option value="CALL">CALL</option>
+                  </select>
+                  <input type="number" step="0.01" name="baseCharge" placeholder="Base charge (₹)" required />
+                  <input type="date" name="effectiveFrom" required />
+                  <button class="primary-btn" type="submit">Submit Request</button>
+                  <p class="form-message" id="vendor-charge-form-message"></p>
+                </form>
+              </div>
+              <div class="config-block">
+                <h4>Pickup Rules (Beat/Call)</h4>
+                <form id="pickup-rule-form" class="card-form">
+                  <select name="pickupType" required>
+                    <option value="BEAT">BEAT</option>
+                    <option value="CALL">CALL</option>
+                  </select>
+                  <input type="number" name="freeLimit" placeholder="Free limit (CALL)" />
+                  <input type="date" name="effectiveFrom" required />
+                  <button class="primary-btn" type="submit">Submit Request</button>
+                  <p class="form-message" id="pickup-rule-message"></p>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== CUSTOMER CHARGES SECTION ========== -->
+        <div class="charge-panel hidden" id="customer-panel">
+          <h2>Customer Charges</h2>
+
+          <div class="charge-subsection">
+            <h3>Compute & View</h3>
+            <div class="charge-controls">
+              <label class="field">
+                <span class="label">Month (YYYYMM)</span>
+                <input type="text" id="charge-month-customer" placeholder="e.g. 202501" maxlength="6" />
+              </label>
+              <button class="primary-btn" id="compute-customer-btn">Compute Customer Charges</button>
+              <button class="secondary-btn" id="refresh-customer">Refresh</button>
+            </div>
+            <p class="form-message" id="charge-customer-message"></p>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Customer ID</th>
+                    <th>Month</th>
+                    <th>Remittance (₹)</th>
+                    <th>Base (₹)</th>
+                    <th>Enhancement (₹)</th>
+                    <th>Waiver (₹)</th>
+                    <th>Net (₹)</th>
+                    <th>Total w/ Tax (₹)</th>
+                    <th>Computed By</th>
+                  </tr>
+                </thead>
+                <tbody id="customer-charge-rows"></tbody>
+              </table>
+            </div>
+            <p class="form-message" id="customer-charge-message"></p>
+          </div>
+
+          <div class="charge-subsection">
+            <h3>Customer Charge Configuration</h3>
+            <p class="subtitle">Slab-based charges per vendor. Beat pickup: ₹60 per ₹50,000. Waivers apply to net charge.</p>
+            <div class="config-grid">
+              <div class="config-block">
+                <h4>Customer Charge Slabs</h4>
+                <form id="customer-slab-form" class="card-form">
+                  <label class="field">
+                    <span class="label">Vendor</span>
+                    <select id="slab-vendor" name="vendorId" required>
+                      <option value="">Select vendor</option>
+                    </select>
+                  </label>
+                  <input type="number" step="0.01" name="amountFrom" placeholder="Amount from" required />
+                  <input type="number" step="0.01" name="amountTo" placeholder="Amount to" required />
+                  <input type="number" step="0.01" name="chargeAmount" placeholder="Charge (₹)" required />
+                  <input type="text" name="slabLabel" placeholder="Label (e.g. Upto 50K)" />
+                  <input type="date" name="effectiveFrom" required />
+                  <button class="primary-btn" type="submit">Add Slab</button>
+                  <p class="form-message" id="customer-slab-message"></p>
+                </form>
+                <label class="field">
+                  <span class="label">Filter by Vendor</span>
+                  <select id="slab-filter-vendor">
+                    <option value="">All vendors</option>
+                  </select>
+                </label>
+                <div class="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Charge (₹)</th>
+                        <th>Label</th>
+                      </tr>
+                    </thead>
+                    <tbody id="customer-slab-rows"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="config-block">
+                <h4>Charge Config (Global)</h4>
+                <form id="charge-config-form" class="card-form">
+                  <input type="text" name="configCode" placeholder="Config code" required />
+                  <input type="text" name="configName" placeholder="Config name" required />
+                  <input type="number" step="0.0001" name="valueNumber" placeholder="Value number" />
+                  <input type="text" name="valueText" placeholder="Value text" />
+                  <input type="date" name="effectiveFrom" required />
+                  <button class="primary-btn" type="submit">Submit Request</button>
+                  <p class="form-message" id="charge-config-message"></p>
+                </form>
+                <p class="subtitle" style="font-size: 12px;">
+                  Codes: ENHANCEMENT_THRESHOLD_AMOUNT (50000), ENHANCEMENT_CHARGE_AMOUNT (60), GST_ENABLED (Y/N), GST_RATE_PERCENT (18), CUSTOMER_CHARGE_RATE_PERCENT (fallback).
+                </p>
+              </div>
+              <div class="config-block">
+                <h4>Waiver Master</h4>
+                <form id="waiver-form" class="card-form">
+                  <input type="text" name="customerId" placeholder="Customer ID" required />
+                  <select name="waiverType" required>
+                    <option value="PERCENT">PERCENT</option>
+                    <option value="CAP">CAP</option>
+                    <option value="BOTH">BOTH</option>
+                  </select>
+                  <input type="number" step="0.01" name="waiverPercentage" placeholder="Waiver %" />
+                  <input type="number" step="0.01" name="waiverCapAmount" placeholder="Waiver cap (₹)" />
+                  <input type="date" name="waiverFrom" required />
+                  <input type="date" name="waiverTo" placeholder="Waiver to (optional)" />
+                  <button class="primary-btn" type="submit">Submit Request</button>
+                  <p class="form-message" id="waiver-message"></p>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
 
         <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
@@ -31,5 +223,6 @@
 
     <script src="config.js?v=1"></script>
     <script src="app.js?v=4"></script>
+    <script src="charges.js?v=3"></script>
   </body>
 </html>

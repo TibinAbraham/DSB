@@ -18,7 +18,6 @@ router = APIRouter(prefix="/api/pickup-rules", tags=["pickup-rules"])
 @router.get("")
 def list_rules(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR"))):
     db = SessionLocal()
-    enforce_month_unlocked(db, payload.effective_from.strftime("%Y%m"))
     rules = db.query(PickupRulesMaster).filter(PickupRulesMaster.status == "ACTIVE").all()
     result = [
         {

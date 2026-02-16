@@ -107,6 +107,17 @@ bindForm("#vendor-charge-form", "#vendor-charge-message", async (data) => {
   });
 });
 
+bindForm("#customer-slab-form", "#customer-slab-message", async (data) => {
+  await postJson(`${apiBase}/api/customer-charge-slabs`, {
+    vendor_id: Number(data.get("vendorId")),
+    amount_from: Number(data.get("amountFrom")),
+    amount_to: Number(data.get("amountTo")),
+    charge_amount: Number(data.get("chargeAmount")),
+    slab_label: data.get("slabLabel") || "",
+    effective_from: data.get("effectiveFrom"),
+  });
+});
+
 bindForm("#waiver-form", "#waiver-message", async (data) => {
   await postJson(`${apiBase}/api/waivers/requests`, {
     customer_id: data.get("customerId"),
@@ -516,8 +527,73 @@ if (vendorFormatRequestFilter) {
 }
 
 renderMappingBuilder();
+const slabVendorSelect = document.querySelector("#slab-vendor");
+const slabFilterVendor = document.querySelector("#slab-filter-vendor");
+const customerSlabRows = document.querySelector("#customer-slab-rows");
+
+const loadSlabVendors = async () => {
+  if (!slabVendorSelect || !slabFilterVendor) return;
+  try {
+    const response = await fetch(`${apiBase}/api/vendors`, {
+      headers: window.getAuthHeaders(),
+    });
+    if (!response.ok) return;
+    const vendors = await response.json();
+    const active = vendors.filter((v) => v.status === "ACTIVE");
+    [slabVendorSelect, slabFilterVendor].forEach((el) => {
+      if (!el) return;
+      const isFilter = el === slabFilterVendor;
+      el.innerHTML = isFilter ? '<option value="">All vendors</option>' : '<option value="">Select vendor</option>';
+      active.forEach((v) => {
+        const opt = document.createElement("option");
+        opt.value = v.vendor_id;
+        opt.textContent = `${v.name || v.vendor_name || ""} (${v.code || v.vendor_code || ""})`.trim() || v.vendor_id;
+        el.appendChild(opt);
+      });
+    });
+  } catch (e) {
+    /* ignore */
+  }
+};
+
+const loadCustomerSlabs = async (vendorId) => {
+  if (!customerSlabRows) return;
+  try {
+    const url = vendorId
+      ? `${apiBase}/api/customer-charge-slabs?vendor_id=${vendorId}`
+      : `${apiBase}/api/customer-charge-slabs`;
+    const response = await fetch(url, { headers: window.getAuthHeaders() });
+    if (!response.ok) return;
+    const data = await response.json();
+    customerSlabRows.innerHTML = data
+      .map(
+        (r) => `
+      <tr>
+        <td>${r.vendor_name || r.vendor_code || r.vendor_id}</td>
+        <td>${Number(r.amount_from).toLocaleString()}</td>
+        <td>${Number(r.amount_to).toLocaleString()}</td>
+        <td>${Number(r.charge_amount).toLocaleString()}</td>
+        <td>${r.slab_label || ""}</td>
+        <td>${r.effective_from ? r.effective_from.slice(0, 10) : ""}</td>
+      </tr>
+    `,
+      )
+      .join("");
+  } catch (e) {
+    customerSlabRows.innerHTML = "<tr><td colspan='6'>Unable to load slabs</td></tr>";
+  }
+};
+
 loadActiveVendorsForFormat();
 loadApprovedVendorFilters();
+loadSlabVendors();
+loadCustomerSlabs();
+
+if (slabFilterVendor) {
+  slabFilterVendor.addEventListener("change", () => {
+    loadCustomerSlabs(slabFilterVendor.value || null);
+  });
+}
 loadVendorFormats("");
 loadVendorFormatRequests();
 

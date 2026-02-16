@@ -9,7 +9,6 @@ from db import SessionLocal
 from models import ApprovalRequest, ChargeConfigurationMaster
 from schemas import ApprovalDecision, ChargeConfigRequest
 from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
-from utils_month_lock import enforce_month_unlocked
 
 
 router = APIRouter(prefix="/api/charge-configs", tags=["charge-configs"])
@@ -18,7 +17,6 @@ router = APIRouter(prefix="/api/charge-configs", tags=["charge-configs"])
 @router.get("")
 def list_charge_configs(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR"))):
     db = SessionLocal()
-    enforce_month_unlocked(db, payload.effective_from.strftime("%Y%m"))
     configs = db.query(ChargeConfigurationMaster).filter(ChargeConfigurationMaster.status == "ACTIVE").all()
     result = [
         {

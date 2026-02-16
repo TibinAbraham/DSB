@@ -20,6 +20,7 @@ from routes_charge_config import router as charge_config_router
 from routes_vendor_charge import router as vendor_charge_router
 from routes_waivers import router as waivers_router
 from routes_remittances import router as remittances_router
+from routes_customer_charge_slabs import router as customer_charge_slabs_router
 from routes_exceptions import router as exceptions_router
 from routes_admin import router as admin_router
 
@@ -54,6 +55,7 @@ app.include_router(charge_config_router)
 app.include_router(vendor_charge_router)
 app.include_router(waivers_router)
 app.include_router(remittances_router)
+app.include_router(customer_charge_slabs_router)
 app.include_router(exceptions_router)
 app.include_router(admin_router)
 

@@ -10,9 +10,11 @@ const roleConfig = {
     "vendor-onboarding",
     "reconciliation",
     "reconciliation-results",
+    "charges",
+    "masters",
     "reports",
   ],
-  CHECKER: ["dashboard", "approvals", "reconciliation", "reconciliation-results", "reports"],
+  CHECKER: ["dashboard", "approvals", "reconciliation", "reconciliation-results", "charges", "reports"],
   ADMIN: [
     "dashboard",
     "uploads",
@@ -28,7 +30,7 @@ const roleConfig = {
     "reports",
     "admin-tools",
   ],
-  AUDITOR: ["dashboard", "reports", "reconciliation", "reconciliation-results"],
+  AUDITOR: ["dashboard", "reports", "reconciliation", "reconciliation-results", "charges"],
 };
 
 window.getAuthHeaders = () => {

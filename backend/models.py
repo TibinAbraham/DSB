@@ -163,6 +163,28 @@ class VendorChargeMaster(Base):
     )
 
 
+class CustomerChargeSlab(Base):
+    __tablename__ = "customer_charge_slabs"
+
+    slab_id = Column(Number, Sequence("seq_customer_charge_slab"), primary_key=True)
+    vendor_id = Column(Number, ForeignKey("vendor_master.vendor_id"), nullable=False)
+    amount_from = Column(Number(18, 2), nullable=False)
+    amount_to = Column(Number(18, 2), nullable=False)
+    charge_amount = Column(Number(18, 2), nullable=False)
+    slab_label = Column(String(100))
+    status = Column(String(10), nullable=False)
+    effective_from = Column(Date, nullable=False)
+    effective_to = Column(Date)
+    created_by = Column(String(50), nullable=False)
+    created_date = Column(DateTime, server_default=func.now(), nullable=False)
+    approved_by = Column(String(50))
+    approved_date = Column(DateTime)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('ACTIVE','INACTIVE')", name="chk_customer_slab_status"),
+    )
+
+
 class WaiverMaster(Base):
     __tablename__ = "waiver_master"
 
@@ -211,6 +233,7 @@ class CustomerChargeSummary(Base):
     month_key = Column(String(6), nullable=False)
     total_remittance = Column(Number(18, 2), default=0)
     base_charge_amount = Column(Number(18, 2), default=0)
+    enhancement_charge = Column(Number(18, 2), default=0)
     waiver_amount = Column(Number(18, 2), default=0)
     net_charge_amount = Column(Number(18, 2), default=0)
     tax_amount = Column(Number(18, 2), default=0)

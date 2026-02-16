@@ -29,6 +29,7 @@ CREATE SEQUENCE seq_audit_log START WITH 1 INCREMENT BY 1 NOCACHE;
 CREATE SEQUENCE seq_month_lock START WITH 1 INCREMENT BY 1 NOCACHE;
 CREATE SEQUENCE seq_vendor_charge_summary START WITH 1 INCREMENT BY 1 NOCACHE;
 CREATE SEQUENCE seq_customer_charge_summary START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE seq_customer_charge_slab START WITH 1 INCREMENT BY 1 NOCACHE;
 
 -- =========================
 -- Master Tables
@@ -149,6 +150,24 @@ CREATE TABLE vendor_charge_master (
   CONSTRAINT chk_vendor_charge_status CHECK (status IN ('ACTIVE','INACTIVE'))
 );
 
+CREATE TABLE customer_charge_slabs (
+  slab_id            NUMBER PRIMARY KEY,
+  vendor_id          NUMBER NOT NULL,
+  amount_from        NUMBER(18,2) NOT NULL,
+  amount_to          NUMBER(18,2) NOT NULL,
+  charge_amount      NUMBER(18,2) NOT NULL,
+  slab_label         VARCHAR2(100),
+  status             VARCHAR2(10) NOT NULL,
+  effective_from     DATE NOT NULL,
+  effective_to       DATE,
+  created_by         VARCHAR2(50) NOT NULL,
+  created_date       DATE DEFAULT SYSDATE NOT NULL,
+  approved_by        VARCHAR2(50),
+  approved_date      DATE,
+  CONSTRAINT fk_customer_slab_vendor FOREIGN KEY (vendor_id) REFERENCES vendor_master(vendor_id),
+  CONSTRAINT chk_customer_slab_status CHECK (status IN ('ACTIVE','INACTIVE'))
+);
+
 CREATE TABLE waiver_master (
   waiver_id           NUMBER PRIMARY KEY,
   customer_id         VARCHAR2(50) NOT NULL,
@@ -193,6 +212,7 @@ CREATE TABLE customer_charge_summary (
   month_key           VARCHAR2(6) NOT NULL,
   total_remittance    NUMBER(18,2) DEFAULT 0,
   base_charge_amount  NUMBER(18,2) DEFAULT 0,
+  enhancement_charge  NUMBER(18,2) DEFAULT 0,
   waiver_amount       NUMBER(18,2) DEFAULT 0,
   net_charge_amount   NUMBER(18,2) DEFAULT 0,
   tax_amount          NUMBER(18,2) DEFAULT 0,
