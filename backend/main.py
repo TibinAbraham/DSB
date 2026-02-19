@@ -23,6 +23,7 @@ from routes_remittances import router as remittances_router
 from routes_customer_charge_slabs import router as customer_charge_slabs_router
 from routes_exceptions import router as exceptions_router
 from routes_admin import router as admin_router
+from routes_users import router as users_router
 
 
 app = FastAPI(title="Doorstep Banking Application")
@@ -58,6 +59,7 @@ app.include_router(remittances_router)
 app.include_router(customer_charge_slabs_router)
 app.include_router(exceptions_router)
 app.include_router(admin_router)
+app.include_router(users_router)
 
 
 @app.get("/api/health")

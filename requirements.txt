@@ -6,3 +6,17 @@ pandas
 openpyxl
 python-multipart
 pydantic
+requests
+
+
+cd "/Users/tibinabraham/Desktop/Federal Bank/DSB/backend"
+python -m venv .venv
+source .venv/bin/activate
+pip install -r ../requirements.txt
+python -m uvicorn main:app --reload
+
+
+cd "/Users/tibinabraham/Desktop/Federal Bank/DSB"
+python -m http.server 8080
+
+fbehjs

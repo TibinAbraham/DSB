@@ -59,25 +59,11 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | None:
-    # === AD/LDAP login example (comment only) ===
-    # Replace the local password check with an AD bind, e.g.:
-    #
-    # def ad_bind_ok(employee_id: str, password: str) -> bool:
-    #     # Example only: use ldap3 or ldap3 + TLS as per bank policy
-    #     # server = Server("ldap://10.x.x.x", get_info=ALL)
-    #     # conn = Connection(server, user=f"DOMAIN\\{employee_id}", password=password, auto_bind=True)
-    #     # return conn.bound
-    #     return True
-    #
-    # if not ad_bind_ok(employee_id, password):
-    #     return None
-    #
-    # After AD auth, fetch the user's role from local DB (user_account):
-    # user = db.query(UserAccount).filter(UserAccount.employee_id == employee_id).first()
-    # if not user or user.status != "ACTIVE":
-    #     return None
-    # return AuthUser(employee_id=user.employee_id, name=user.full_name, role=user.role_code)
-    # === end example ===
+    """
+    Option 1: AD validates password, DB controls access and role.
+    User must exist in user_account (provisioned by admin) to log in.
+    Fallback: users with local password_hash (pbkdf2$) can still use local auth.
+    """
     user = (
         db.query(UserAccount)
         .filter(UserAccount.employee_id == employee_id)
@@ -86,11 +72,22 @@ def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | Non
     )
     if not user:
         return None
-    if not verify_password(password, user.password_hash):
+
+    if user.password_hash and user.password_hash.startswith("pbkdf2$"):
+        if not verify_password(password, user.password_hash):
+            return None
+        return AuthUser(employee_id=user.employee_id, name=user.full_name, role=user.role_code)
+
+    try:
+        from ad_login import validate_ad_credentials
+
+        ad_ok = validate_ad_credentials(employee_id, password)
+    except Exception:
+        ad_ok = False
+
+    if not ad_ok:
         return None
-    if "$" not in user.password_hash:
-        user.password_hash = hash_password(password)
-        db.commit()
+
     return AuthUser(employee_id=user.employee_id, name=user.full_name, role=user.role_code)
 
 

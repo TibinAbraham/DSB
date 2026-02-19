@@ -50,6 +50,42 @@
           <pre class="code-block" id="admin-cleanup-result"></pre>
         </form>
 
+        <hr style="margin: 28px 0; border: none; border-top: 1px solid #e5e7eb;" />
+
+        <h2>User Management</h2>
+        <p class="subtitle">
+          Grant application access to Bank AD users. Users log in with their AD credentials; roles are assigned here.
+        </p>
+        <form id="user-add-form" class="card-form" style="max-width: 480px;">
+          <input type="text" name="employeeId" placeholder="Employee ID (AD username)" required />
+          <input type="text" name="fullName" placeholder="Full Name" required />
+          <select name="roleCode" required>
+            <option value="">Select role</option>
+            <option value="MAKER">MAKER</option>
+            <option value="CHECKER">CHECKER</option>
+            <option value="ADMIN">ADMIN</option>
+            <option value="AUDITOR">AUDITOR</option>
+          </select>
+          <button class="primary-btn" type="submit">Grant Access</button>
+          <p class="form-message" id="user-add-message"></p>
+        </form>
+        <div class="table-wrapper" style="margin-top: 20px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Full Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="user-list-rows"></tbody>
+          </table>
+        </div>
+        <p class="form-message" id="user-list-message"></p>
+
         <div class="card-grid" style="margin-top: 20px;">
           <a class="nav-card" href="masters.html">Charge Configuration (Masters)</a>
           <a class="nav-card" href="charges.html">Charge Computation</a>
