@@ -1,14 +1,18 @@
 """
 Bank AD login via SOAP. Validates username/password against bank SSO endpoint.
 Configure via env: AD_SOAP_ENDPOINT, AD_SOAP_ACTION, AD_VERIFY_SSL, AD_TIMEOUT
+AD_SKIP=true: bypass AD (for local dev when endpoint unreachable) - validates against DB only.
 """
 
 import html as html_escape
+import logging
 import os
 import re
 import xml.etree.ElementTree as ET
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 SOAP_ENDPOINT = os.environ.get(
     "AD_SOAP_ENDPOINT",
@@ -17,6 +21,8 @@ SOAP_ENDPOINT = os.environ.get(
 SOAP_ACTION = os.environ.get("AD_SOAP_ACTION", "http://tempuri.org/userAttributes")
 VERIFY_SSL = os.environ.get("AD_VERIFY_SSL", "false").lower() in ("true", "1", "yes")
 TIMEOUT_SEC = int(os.environ.get("AD_TIMEOUT", "30"))
+AD_SKIP = os.environ.get("AD_SKIP", "false").lower() in ("true", "1", "yes")
+AD_DEBUG = os.environ.get("AD_DEBUG", "false").lower() in ("true", "1", "yes")
 
 
 def _send_soap(envelope: str, headers: dict):
@@ -37,7 +43,13 @@ def _interpret_login_success(xml_text: str, http_status: int) -> bool:
     if http_status < 200 or http_status >= 300:
         return False
 
-    if re.search(r"(<|\w+:)?Fault\b", xml_text, re.IGNORECASE):
+    if not xml_text or not xml_text.strip():
+        return False
+
+    xml_lower = xml_text.lower()
+    if re.search(r"(<|\w+:)?Fault\b", xml_lower):
+        return False
+    if any(bad in xml_lower for bad in ("<fault>", "soap:fault", "soap12:fault")):
         return False
 
     try:
@@ -47,27 +59,33 @@ def _interpret_login_success(xml_text: str, http_status: int) -> bool:
 
     all_text = " ".join([t.strip() for t in root.itertext() if t.strip()]).lower()
 
-    for tag in ("isAuthenticated", "Authenticated", "IsAuthenticated"):
+    def _tag_matches(el, name):
+        if not el.tag:
+            return False
+        tag_lower = el.tag.lower()
+        return tag_lower.endswith(name.lower()) or name.lower() in tag_lower
+
+    for tag in ("isAuthenticated", "Authenticated", "IsAuthenticated", "authenticated"):
         for el in root.iter():
-            if el.tag and el.tag.lower().endswith(tag.lower()):
+            if _tag_matches(el, tag):
                 val = (el.text or "").strip().lower()
                 if val in ("true", "1", "yes"):
                     return True
                 if val in ("false", "0", "no"):
                     return False
 
-    for tag in ("Status", "Result", "Outcome", "AuthStatus"):
+    for tag in ("Status", "Result", "Outcome", "AuthStatus", "LoginResult", "AuthResult"):
         for el in root.iter():
-            if el.tag and el.tag.lower().endswith(tag.lower()):
+            if _tag_matches(el, tag):
                 val = (el.text or "").strip().lower()
-                if "success" in val or val in ("ok", "valid"):
+                if "success" in val or val in ("ok", "valid", "true", "1"):
                     return True
-                if any(bad in val for bad in ("fail", "invalid", "error", "unauth", "denied")):
+                if any(bad in val for bad in ("fail", "invalid", "error", "unauth", "denied", "false")):
                     return False
 
-    for tag in ("ErrorCode", "ErrCode", "Code"):
+    for tag in ("ErrorCode", "ErrCode", "Code", "Error"):
         for el in root.iter():
-            if el.tag and el.tag.lower().endswith(tag.lower()):
+            if _tag_matches(el, tag):
                 val = (el.text or "").strip()
                 if val.isdigit():
                     return int(val) == 0
@@ -81,12 +99,18 @@ def _interpret_login_success(xml_text: str, http_status: int) -> bool:
         "sn",
         "mobile",
         "employeeeid",
+        "userattributes",
+        "userattributesresult",
     )
     if any(field in all_text for field in common_ad_fields):
         if not re.search(
             r"\binvalid\b|\bfail\b|\berror\b|\bdenied\b|\bunauthor",
             all_text,
         ):
+            return True
+
+    if "true" in all_text and "false" not in all_text:
+        if not re.search(r"\b(invalid|fail|error|denied|unauthor)\b", all_text):
             return True
 
     return False
@@ -96,12 +120,17 @@ def validate_ad_credentials(username: str, password: str) -> bool:
     """
     Validate username/password against Bank AD SOAP endpoint.
     Returns True if AD authentication succeeds, False otherwise.
+    Set AD_SKIP=true to bypass AD (local dev only - accepts any non-empty password).
     """
     username = (username or "").strip()
     password = password or ""
 
     if not username or not password:
         return False
+
+    if AD_SKIP:
+        logger.warning("AD_SKIP enabled - bypassing Bank AD validation (local dev only)")
+        return True
 
     soap12_env = (
         '<?xml version="1.0" encoding="utf-8"?>\n'
@@ -137,17 +166,26 @@ def validate_ad_credentials(username: str, password: str) -> bool:
         password=html_escape.escape(password),
     )
 
+    headers_11 = {
+        "Content-Type": "text/xml; charset=utf-8",
+        "SOAPAction": SOAP_ACTION,
+    }
     headers_12 = {
         "Content-Type": f'application/soap+xml; charset=utf-8; action="{SOAP_ACTION}"'
     }
-    ok, status, xml_text = _send_soap(soap12_env, headers_12)
 
-    if status in (415, 500) and not ok:
-        headers_11 = {
-            "Content-Type": "text/xml; charset=utf-8",
-            "SOAPAction": SOAP_ACTION,
-        }
-        ok2, status2, xml_text2 = _send_soap(soap11_env, headers_11)
-        ok, status, xml_text = ok2, status2, xml_text2
+    ok, status, xml_text = _send_soap(soap11_env, headers_11)
+    result = _interpret_login_success(xml_text, status)
 
-    return _interpret_login_success(xml_text, status)
+    if not result and status in (415, 405, 500) and status != 0:
+        ok2, status2, xml_text2 = _send_soap(soap12_env, headers_12)
+        status, xml_text = status2, xml_text2
+        result = _interpret_login_success(xml_text, status)
+
+    if AD_DEBUG and xml_text:
+        logger.info("AD_DEBUG: http_status=%s, result=%s, response=%s", status, result, xml_text[:1000])
+
+    if not result and status and xml_text:
+        logger.warning("AD login failed: http_status=%s, response_snippet=%s", status, (xml_text or "")[:400])
+
+    return result

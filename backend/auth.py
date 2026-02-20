@@ -2,6 +2,7 @@ import base64
 import binascii
 import hashlib
 import hmac
+import logging
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -82,7 +83,8 @@ def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | Non
         from ad_login import validate_ad_credentials
 
         ad_ok = validate_ad_credentials(employee_id, password)
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).warning("AD validation error: %s", e)
         ad_ok = False
 
     if not ad_ok:

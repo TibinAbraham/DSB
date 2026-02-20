@@ -51,12 +51,22 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify({ employeeId, password }),
     });
 
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      throw new Error("Login failed");
+      const detail = data.detail || "Login failed";
+      if (response.status === 401) {
+        message.textContent = detail === "Invalid credentials"
+          ? "Invalid credentials. Check Employee ID and password, or ensure you have application access."
+          : detail;
+      } else {
+        message.textContent = detail;
+      }
+      message.style.color = "#b42318";
+      return;
     }
 
-    const user = await response.json();
-    handleLoginSuccess(user);
+    handleLoginSuccess(data);
   } catch (error) {
     message.textContent =
       "Auth service unavailable. Please try again or contact admin.";
