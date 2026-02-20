@@ -1,9 +1,4 @@
-import base64
-import binascii
-import hashlib
-import hmac
 import logging
-import secrets
 import uuid
 from dataclasses import dataclass
 
@@ -23,47 +18,11 @@ class AuthUser:
 
 _TOKEN_STORE: dict[str, AuthUser] = {}
 
-_HASH_PREFIX = "pbkdf2"
-_HASH_ITERATIONS = 210_000
-_SALT_BYTES = 16
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_bytes(_SALT_BYTES)
-    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _HASH_ITERATIONS)
-    salt_b64 = base64.urlsafe_b64encode(salt).decode("ascii").rstrip("=")
-    hash_b64 = base64.urlsafe_b64encode(dk).decode("ascii").rstrip("=")
-    return f"{_HASH_PREFIX}${_HASH_ITERATIONS}${salt_b64}${hash_b64}"
-
-
-def _constant_time_equals(left: str, right: str) -> bool:
-    return hmac.compare_digest(left.encode("utf-8"), right.encode("utf-8"))
-
-
-def verify_password(password: str, stored: str) -> bool:
-    if not stored or "$" not in stored:
-        return _constant_time_equals(password, stored)
-
-    parts = stored.split("$")
-    if len(parts) != 4 or parts[0] != _HASH_PREFIX:
-        return _constant_time_equals(password, stored)
-
-    try:
-        iterations = int(parts[1])
-        salt = base64.urlsafe_b64decode(parts[2] + "==")
-        expected = base64.urlsafe_b64decode(parts[3] + "==")
-    except (ValueError, binascii.Error):
-        return False
-
-    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
-    return hmac.compare_digest(dk, expected)
-
 
 def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | None:
     """
-    Option 1: AD validates password, DB controls access and role.
+    AD validates password, DB controls access and role.
     User must exist in user_account (provisioned by admin) to log in.
-    Fallback: users with local password_hash (pbkdf2$) can still use local auth.
     """
     user = (
         db.query(UserAccount)
@@ -73,11 +32,6 @@ def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | Non
     )
     if not user:
         return None
-
-    if user.password_hash and user.password_hash.startswith("pbkdf2$"):
-        if not verify_password(password, user.password_hash):
-            return None
-        return AuthUser(employee_id=user.employee_id, name=user.full_name, role=user.role_code)
 
     try:
         from ad_login import validate_ad_credentials
