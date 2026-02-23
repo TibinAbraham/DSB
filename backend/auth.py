@@ -23,6 +23,8 @@ def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | Non
     """
     AD validates password, DB controls access and role.
     User must exist in user_account (provisioned by admin) to log in.
+    [DUMMY USER / TESTING] With AD_SKIP=true, AD validation is bypassed and any
+    non-empty password is accepted for users in user_account. Add users via Admin > User Management.
     """
     user = (
         db.query(UserAccount)

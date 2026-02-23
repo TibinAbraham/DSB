@@ -1,7 +1,9 @@
 """
 Bank AD login via SOAP. Validates username/password against bank SSO endpoint.
 Configure via env: AD_SOAP_ENDPOINT, AD_SOAP_ACTION, AD_VERIFY_SSL, AD_TIMEOUT
-AD_SKIP=true: bypass AD (for local dev when endpoint unreachable) - validates against DB only.
+
+[DUMMY USER / TESTING] AD_SKIP=true: bypass AD when endpoint unreachable.
+Accepts any non-empty password for users in user_account. Add users via Admin > User Management.
 """
 
 import html as html_escape
@@ -128,6 +130,9 @@ def validate_ad_credentials(username: str, password: str) -> bool:
     if not username or not password:
         return False
 
+    # [DUMMY USER / TESTING] When AD_SKIP=true, bypass Bank AD SOAP validation.
+    # Accepts any non-empty password for users in user_account. Use for local dev
+    # or testing when AD endpoint is unreachable. Add test users via Admin > User Management.
     if AD_SKIP:
         logger.warning("AD_SKIP enabled - bypassing Bank AD validation (local dev only)")
         return True
