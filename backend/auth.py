@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 from dataclasses import dataclass
 
@@ -18,14 +19,35 @@ class AuthUser:
 
 _TOKEN_STORE: dict[str, AuthUser] = {}
 
+# Dummy users for local dev when AD unavailable. Only used when AD_SKIP=true.
+# Format: (employee_id, password, full_name, role_code)
+_DUMMY_USERS = [
+    ("test_maker", "test123", "Test Maker", "MAKER"),
+    ("test_checker", "test123", "Test Checker", "CHECKER"),
+    ("test_admin", "test123", "Test Admin", "ADMIN"),
+    ("test_auditor", "test123", "Test Auditor", "AUDITOR"),
+]
+_DUMMY_IDS = {u[0] for u in _DUMMY_USERS}
+
+
+def _is_dummy_user(employee_id: str, password: str) -> AuthUser | None:
+    if not os.environ.get("AD_SKIP", "").lower() in ("true", "1", "yes"):
+        return None
+    for eid, pwd, name, role in _DUMMY_USERS:
+        if eid == employee_id and pwd == password:
+            return AuthUser(employee_id=eid, name=name, role=role)
+    return None
+
 
 def authenticate(db: Session, employee_id: str, password: str) -> AuthUser | None:
     """
     AD validates password, DB controls access and role.
-    User must exist in user_account (provisioned by admin) to log in.
-    [DUMMY USER / TESTING] With AD_SKIP=true, AD validation is bypassed and any
-    non-empty password is accepted for users in user_account. Add users via Admin > User Management.
+    When AD_SKIP=true: dummy users (in code) or DB users with any password can log in.
     """
+    dummy = _is_dummy_user(employee_id, password)
+    if dummy:
+        return dummy
+
     user = (
         db.query(UserAccount)
         .filter(UserAccount.employee_id == employee_id)
@@ -63,6 +85,8 @@ def get_current_user(request: Request) -> AuthUser:
     user = _TOKEN_STORE.get(token)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    if user.employee_id in _DUMMY_IDS:
+        return user
     db = SessionLocal()
     try:
         active = (
