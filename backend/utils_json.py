@@ -45,6 +45,7 @@ def sanitize_json_for_display(value: str | None) -> str:
     if value is None or not isinstance(value, str):
         return "{}"
     s = sanitize_json_string(value)
+    print(s, "sanitiseds")
     if s == "{}":
         return "{}"
     try:

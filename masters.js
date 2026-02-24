@@ -530,7 +530,11 @@ if (vendorFormatRows && vendorFormatForm) {
       format.format_name || "";
     vendorFormatForm.querySelector('input[name="effectiveFrom"]').value =
       formatToInputDate(format.effective_from);
-    const mappingText = sanitizeJsonForDisplay(format.header_mapping_json || "{}");
+    const mapping = format.header_mapping_json;
+    const mappingText =
+      typeof mapping === "object" && mapping !== null
+        ? JSON.stringify(mapping, null, 2)
+        : sanitizeJsonForDisplay(typeof mapping === "string" ? mapping : "{}");
     mappingTextarea.value = mappingText;
     setMappingFromJson(mappingText);
     vendorFormatForm.scrollIntoView({ behavior: "smooth" });
