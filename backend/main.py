@@ -5,11 +5,26 @@ from dotenv import load_dotenv
 # Load .env from backend/ so AD_SKIP, AD_* etc. are available
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from db import SessionLocal
+
+
+class CharsetMiddleware(BaseHTTPMiddleware):
+    """Force charset=utf-8 for JSON responses (fixes Windows Chrome display)."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        ct = response.headers.get("content-type", "")
+        if "application/json" in ct and "charset=" not in ct:
+            response.headers["content-type"] = "application/json; charset=utf-8"
+        return response
 from routes_vendor_file_format import router as vendor_file_format_router
 from routes_uploads import router as uploads_router
 from routes_store_mapping import router as store_mapping_router
@@ -35,6 +50,7 @@ from routes_users import router as users_router
 
 app = FastAPI(title="Doorstep Banking Application")
 
+app.add_middleware(CharsetMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

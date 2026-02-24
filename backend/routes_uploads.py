@@ -24,6 +24,7 @@ from models import (
     VendorMaster,
 )
 from schemas import UploadResponse
+from utils_json import sanitize_json_string
 from utils_month_lock import enforce_month_unlocked
 
 
@@ -555,7 +556,7 @@ def upload_vendor(
         raise HTTPException(status_code=400, detail="Vendor file format config not active")
 
     try:
-        mapping = json.loads(format_config.header_mapping_json)
+        mapping = json.loads(sanitize_json_string(format_config.header_mapping_json))
     except json.JSONDecodeError:
         db.close()
         raise HTTPException(status_code=400, detail="Invalid vendor file format mapping JSON")
@@ -750,7 +751,7 @@ def validate_vendor_upload(
         raise HTTPException(status_code=400, detail="Vendor file format config not active")
 
     try:
-        mapping = json.loads(format_config.header_mapping_json)
+        mapping = json.loads(sanitize_json_string(format_config.header_mapping_json))
     except json.JSONDecodeError:
         db.close()
         raise HTTPException(status_code=400, detail="Invalid vendor file format mapping JSON")

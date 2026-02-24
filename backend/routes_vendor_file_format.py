@@ -10,6 +10,7 @@ from db import SessionLocal
 from models import ApprovalRequest, VendorFileFormatConfig
 from schemas import ApprovalDecision, VendorFileFormatRequest
 from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
+from utils_json import sanitize_json_for_display, sanitize_json_string
 from models import VendorMaster
 
 
@@ -37,7 +38,7 @@ def list_vendor_formats(
             "vendor_name": v.vendor_name,
             "vendor_code": v.vendor_code,
             "format_name": c.format_name,
-            "header_mapping_json": c.header_mapping_json,
+            "header_mapping_json": sanitize_json_for_display(c.header_mapping_json),
             "status": c.status,
             "effective_from": c.effective_from,
         }
@@ -60,7 +61,7 @@ def request_vendor_format(
     config = VendorFileFormatConfig(
         vendor_id=payload.vendor_id,
         format_name=payload.format_name,
-        header_mapping_json=payload.header_mapping_json,
+        header_mapping_json=sanitize_json_string(payload.header_mapping_json),
         status="INACTIVE",
         effective_from=payload.effective_from,
         created_by=payload.maker_id,

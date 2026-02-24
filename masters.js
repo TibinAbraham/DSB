@@ -227,6 +227,25 @@ const loadApprovedVendorFilters = async () => {
   }
 };
 
+/**
+ * Sanitize JSON string for display (fixes Windows Chrome encoding/RTL corruption).
+ * Strips BOM, removes Unicode control chars, normalizes line endings.
+ */
+const sanitizeJsonForDisplay = (str) => {
+  if (str == null || typeof str !== "string") return "{}";
+  let s = str.trim();
+  if (!s) return "{}";
+  if (s.startsWith("\uFEFF")) s = s.slice(1);
+  s = s.replace(/[\uFEFF\u202E\u202F\u200E\u200F\u200B\u200C\u200D\u2066\u2067\u2068\u2069\u202C]/g, "");
+  s = s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  try {
+    const obj = JSON.parse(s);
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return s;
+  }
+};
+
 const formatToInputDate = (value) => {
   if (!value) return "";
   const parsed = new Date(value);
@@ -370,10 +389,18 @@ const loadVendorFormatRequests = async () => {
 };
 
 bindForm("#vendor-format-form", "#vendor-format-message", async (data) => {
+  const rawMapping = data.get("headerMapping") || "{}";
+  let cleanMapping = rawMapping;
+  try {
+    const s = rawMapping.replace(/[\uFEFF\u202E\u202F\u200E\u200F\u200B\u200C\u200D\u2066\u2067\u2068\u2069\u202C]/g, "").trim();
+    cleanMapping = JSON.stringify(JSON.parse(s || "{}"));
+  } catch {
+    cleanMapping = rawMapping;
+  }
   await postJson(`${apiBase}/api/vendor-file-formats/requests`, {
     vendor_id: Number(data.get("vendorId")),
     format_name: data.get("formatName"),
-    header_mapping_json: data.get("headerMapping"),
+    header_mapping_json: cleanMapping,
     effective_from: data.get("effectiveFrom"),
     status: "ACTIVE",
     maker_id: currentUser().employeeId,
@@ -503,7 +530,7 @@ if (vendorFormatRows && vendorFormatForm) {
       format.format_name || "";
     vendorFormatForm.querySelector('input[name="effectiveFrom"]').value =
       formatToInputDate(format.effective_from);
-    const mappingText = format.header_mapping_json || "{}";
+    const mappingText = sanitizeJsonForDisplay(format.header_mapping_json || "{}");
     mappingTextarea.value = mappingText;
     setMappingFromJson(mappingText);
     vendorFormatForm.scrollIntoView({ behavior: "smooth" });
