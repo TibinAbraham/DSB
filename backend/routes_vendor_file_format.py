@@ -10,7 +10,6 @@ from db import SessionLocal
 from models import ApprovalRequest, VendorFileFormatConfig
 from schemas import ApprovalDecision, VendorFileFormatRequest
 from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
-from utils_json import sanitize_json_string
 from models import VendorMaster
 
 
@@ -31,24 +30,19 @@ def list_vendor_formats(
     if vendor_id is not None:
         query = query.filter(VendorFileFormatConfig.vendor_id == vendor_id)
     rows = query.all()
-    result = []
-    for c, v in rows:
-        mapping_obj = {}
-        try:
-            raw = sanitize_json_string(c.header_mapping_json)
-            mapping_obj = json.loads(raw) if raw and raw != "{}" else {}
-        except json.JSONDecodeError:
-            pass
-        result.append({
+    result = [
+        {
             "format_id": c.format_id,
             "vendor_id": c.vendor_id,
             "vendor_name": v.vendor_name,
             "vendor_code": v.vendor_code,
             "format_name": c.format_name,
-            "header_mapping_json": mapping_obj,  # Return as object to avoid double-encoding in API response
+            "header_mapping_json": c.header_mapping_json,
             "status": c.status,
             "effective_from": c.effective_from,
-        })
+        }
+        for c, v in rows
+    ]
     log_audit(db, "VENDOR_FILE_FORMAT", "LIST", "VIEW", None, f"count={len(result)}", user.employee_id)
     db.commit()
     db.close()
@@ -66,7 +60,7 @@ def request_vendor_format(
     config = VendorFileFormatConfig(
         vendor_id=payload.vendor_id,
         format_name=payload.format_name,
-        header_mapping_json=sanitize_json_string(payload.header_mapping_json),
+        header_mapping_json=payload.header_mapping_json,
         status="INACTIVE",
         effective_from=payload.effective_from,
         created_by=payload.maker_id,
