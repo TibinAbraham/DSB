@@ -26,3 +26,7 @@ CREATE TABLE customer_charge_slabs (
   CONSTRAINT fk_customer_slab_vendor FOREIGN KEY (vendor_id) REFERENCES vendor_master(vendor_id),
   CONSTRAINT chk_customer_slab_status CHECK (status IN ('ACTIVE','INACTIVE'))
 );
+
+
+   INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+   VALUES (seq_user_account.nextval, 'YOUR_AD_EMPLOYEE_ID', 'Your Name', 'ADMIN', 'AD', 'ACTIVE', SYSDATE);
