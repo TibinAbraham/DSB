@@ -3,17 +3,24 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import joinedload
 
 from auth import AuthUser, require_roles
 from audit import log_audit
 from db import SessionLocal
-from models import ApprovalRequest, VendorFileFormatConfig
+from models import ApprovalRequest, VendorFileFormatConfig, VendorFileFormatHeaderMapping
 from schemas import ApprovalDecision, VendorFileFormatRequest
 from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
 from models import VendorMaster
 
 
 router = APIRouter(prefix="/api/vendor-file-formats", tags=["vendor-file-formats"])
+
+
+def _header_mapping_to_json(mappings):
+    """Build JSON string from normalized header mapping rows."""
+    d = {m.mapping_key: m.source_column for m in mappings}
+    return json.dumps(d) if d else "{}"
 
 
 @router.get("")
@@ -24,6 +31,7 @@ def list_vendor_formats(
     db = SessionLocal()
     query = (
         db.query(VendorFileFormatConfig, VendorMaster)
+        .options(joinedload(VendorFileFormatConfig.header_mappings))
         .join(VendorMaster, VendorMaster.vendor_id == VendorFileFormatConfig.vendor_id)
         .filter(VendorFileFormatConfig.status == "ACTIVE")
     )
@@ -37,7 +45,7 @@ def list_vendor_formats(
             "vendor_name": v.vendor_name,
             "vendor_code": v.vendor_code,
             "format_name": c.format_name,
-            "header_mapping_json": c.header_mapping_json,
+            "header_mapping_json": _header_mapping_to_json(c.header_mappings),
             "status": c.status,
             "effective_from": c.effective_from,
         }
@@ -60,13 +68,23 @@ def request_vendor_format(
     config = VendorFileFormatConfig(
         vendor_id=payload.vendor_id,
         format_name=payload.format_name,
-        header_mapping_json=payload.header_mapping_json,
         status="INACTIVE",
         effective_from=payload.effective_from,
         created_by=payload.maker_id,
     )
     db.add(config)
     db.flush()
+
+    mapping_data = json.loads(payload.header_mapping_json or "{}")
+    for key, value in mapping_data.items():
+        if value:
+            db.add(
+                VendorFileFormatHeaderMapping(
+                    format_id=config.format_id,
+                    mapping_key=str(key).strip(),
+                    source_column=str(value).strip(),
+                )
+            )
 
     approval = ApprovalRequest(
         entity_type="VENDOR_FILE_FORMAT",

@@ -6,6 +6,7 @@ from typing import Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import joinedload
 
 from auth import AuthUser, require_roles
 from audit import log_audit
@@ -74,11 +75,17 @@ def _parse_number(value):
 def _load_vendor_format(db, vendor_id):
     return (
         db.query(VendorFileFormatConfig)
+        .options(joinedload(VendorFileFormatConfig.header_mappings))
         .filter(VendorFileFormatConfig.vendor_id == vendor_id)
         .filter(VendorFileFormatConfig.status == "ACTIVE")
         .order_by(VendorFileFormatConfig.effective_from.desc())
         .first()
     )
+
+
+def _format_mapping_dict(format_config):
+    """Build mapping dict from normalized header_mappings."""
+    return {m.mapping_key: m.source_column for m in (format_config.header_mappings or [])}
 
 
 def _lookup_mapping(db, vendor_id, vendor_store_code, as_of_date):
@@ -554,11 +561,10 @@ def upload_vendor(
         db.close()
         raise HTTPException(status_code=400, detail="Vendor file format config not active")
 
-    try:
-        mapping = json.loads(format_config.header_mapping_json)
-    except json.JSONDecodeError:
+    mapping = _format_mapping_dict(format_config)
+    if not mapping:
         db.close()
-        raise HTTPException(status_code=400, detail="Invalid vendor file format mapping JSON")
+        raise HTTPException(status_code=400, detail="Vendor file format has no header mapping")
 
     df = pd.read_excel(file.file)
     headers = set(df.columns.astype(str))
@@ -749,11 +755,10 @@ def validate_vendor_upload(
         db.close()
         raise HTTPException(status_code=400, detail="Vendor file format config not active")
 
-    try:
-        mapping = json.loads(format_config.header_mapping_json)
-    except json.JSONDecodeError:
+    mapping = _format_mapping_dict(format_config)
+    if not mapping:
         db.close()
-        raise HTTPException(status_code=400, detail="Invalid vendor file format mapping JSON")
+        raise HTTPException(status_code=400, detail="Vendor file format has no header mapping")
 
     df = pd.read_excel(file.file)
     headers = set(df.columns.astype(str))

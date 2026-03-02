@@ -9,6 +9,7 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.orm import relationship
 from sqlalchemy import Numeric as Number
 
 from db import Base
@@ -249,7 +250,6 @@ class VendorFileFormatConfig(Base):
     format_id = Column(Number, Sequence("seq_vendor_file_format"), primary_key=True)
     vendor_id = Column(Number, ForeignKey("vendor_master.vendor_id"), nullable=False)
     format_name = Column(String(100), nullable=False)
-    header_mapping_json = Column(Text, nullable=False)
     status = Column(String(10), nullable=False)
     effective_from = Column(Date, nullable=False)
     effective_to = Column(Date)
@@ -258,9 +258,21 @@ class VendorFileFormatConfig(Base):
     approved_by = Column(String(50))
     approved_date = Column(DateTime)
 
+    header_mappings = relationship("VendorFileFormatHeaderMapping", back_populates="format_config", cascade="all, delete-orphan")
+
     __table_args__ = (
         CheckConstraint("status IN ('ACTIVE','INACTIVE')", name="chk_format_status"),
     )
+
+
+class VendorFileFormatHeaderMapping(Base):
+    __tablename__ = "vendor_file_format_header_mapping"
+
+    format_id = Column(Number, ForeignKey("vendor_file_format_config.format_id", ondelete="CASCADE"), primary_key=True)
+    mapping_key = Column(String(100), primary_key=True)
+    source_column = Column(String(255), nullable=False)
+
+    format_config = relationship("VendorFileFormatConfig", back_populates="header_mappings")
 
 
 class FinacleUploadBatch(Base):

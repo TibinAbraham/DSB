@@ -227,7 +227,6 @@ CREATE TABLE vendor_file_format_config (
   format_id           NUMBER PRIMARY KEY,
   vendor_id           NUMBER NOT NULL,
   format_name         VARCHAR2(100) NOT NULL,
-  header_mapping_json CLOB NOT NULL,
   status              VARCHAR2(10) NOT NULL,
   effective_from      DATE NOT NULL,
   effective_to        DATE,
@@ -237,6 +236,14 @@ CREATE TABLE vendor_file_format_config (
   approved_date       DATE,
   CONSTRAINT fk_format_vendor FOREIGN KEY (vendor_id) REFERENCES vendor_master(vendor_id),
   CONSTRAINT chk_format_status CHECK (status IN ('ACTIVE','INACTIVE'))
+);
+
+CREATE TABLE vendor_file_format_header_mapping (
+  format_id     NUMBER NOT NULL,
+  mapping_key   VARCHAR2(100) NOT NULL,
+  source_column VARCHAR2(255) NOT NULL,
+  CONSTRAINT pk_vendor_format_header_mapping PRIMARY KEY (format_id, mapping_key),
+  CONSTRAINT fk_header_mapping_format FOREIGN KEY (format_id) REFERENCES vendor_file_format_config(format_id) ON DELETE CASCADE
 );
 
 -- =========================
@@ -473,9 +480,41 @@ CREATE TABLE month_lock (
 --   (seq_charge_config_master.nextval, 'CUSTOMER_CHARGE_RATE_PERCENT', 'Customer charge rate', 0.5, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
 --
 -- Vendor file format mapping example (replace :vendor_id)
--- INSERT INTO vendor_file_format_config
---   (format_id, vendor_id, format_name, header_mapping_json, status, effective_from, created_by)
--- VALUES
---   (seq_vendor_file_format.nextval, :vendor_id, 'Default format',
---    '{"pickup_date_column":"PickUpDate","pickup_amount_column":"Total","vendor_store_code_column":"Pickup Point Code","pickup_type_column":"Beat/oncall","account_no_column":"AccountCode","customer_id_column":"HCM_COUSTOMERCODE","customer_name_column":"CustomerName"}',
---    'ACTIVE', SYSDATE, 'SYSTEM');
+-- INSERT INTO vendor_file_format_config (format_id, vendor_id, format_name, status, effective_from, created_by)
+-- VALUES (seq_vendor_file_format.nextval, :vendor_id, 'Default format', 'ACTIVE', SYSDATE, 'SYSTEM');
+-- Then insert header mappings (replace :format_id):
+-- INSERT INTO vendor_file_format_header_mapping (format_id, mapping_key, source_column) VALUES (:format_id, 'pickup_date_column', 'PickUpDate');
+-- INSERT INTO vendor_file_format_header_mapping (format_id, mapping_key, source_column) VALUES (:format_id, 'pickup_amount_column', 'Total');
+--
+-- =========================
+-- User Accounts (AD login)
+-- =========================
+-- First admin: replace YOUR_EMPLOYEE_ID and Your Full Name. Password validated by AD.
+-- INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+-- VALUES (seq_user_account.nextval, 'YOUR_EMPLOYEE_ID', 'Your Full Name', 'ADMIN', 'AD', 'ACTIVE', SYSDATE);
+--
+-- Dummy users (FED001/FED002/FED003) - uncomment to add:
+--INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+--VALUES (seq_user_account.nextval, 'FED001', 'Maker User', 'MAKER', 'AD', 'ACTIVE', SYSDATE);
+--INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+--VALUES (seq_user_account.nextval, 'FED002', 'Checker User', 'CHECKER', 'AD', 'ACTIVE', SYSDATE);
+--INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+--VALUES (seq_user_account.nextval, 'FED003', 'Admin User', 'ADMIN', 'AD', 'ACTIVE', SYSDATE);
+--
+-- =========================
+-- Customer Charge Slabs (replace 1 with vendor_id)
+-- =========================
+/*
+INSERT INTO customer_charge_slabs (slab_id, vendor_id, amount_from, amount_to, charge_amount, slab_label, status, effective_from, created_by)
+SELECT seq_customer_charge_slab.nextval, 1, 0, 50000, 4000, 'Upto 50K', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 50001, 100000, 4500, 'Above 50K to 1L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 100001, 200000, 5750, 'Above 1L to 2L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 200001, 400000, 8750, 'Above 2L to 4L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 400001, 600000, 12000, 'Above 4L to 6L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 600001, 800000, 16000, 'Above 6L to 8L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 800001, 1000000, 18500, 'Above 8L to 10L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 1000001, 1500000, 26000, 'Above 10L to 15L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 1500001, 2000000, 33000, 'Above 15L to 20L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 2000001, 5000000, 42000, 'Above 20L to 50L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
+UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 5000001, 10000000, 58500, 'Above 50L to 1 Cr', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual;
+*/
