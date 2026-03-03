@@ -8,7 +8,10 @@
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">Doorstep Banking</div>
+      <div class="brand-row">
+        <img src="FederalLogo.png" alt="Federal Bank Logo" class="brand-logo" />
+        <div class="brand">Doorstep Banking</div>
+      </div>
       <div class="topbar-actions">
         <span class="user-badge" data-user-badge></span>
         <button class="secondary-btn" data-logout>Logout</button>
@@ -31,6 +34,13 @@
           <button class="primary-btn" id="run-recon">Run Reconciliation</button>
           <button class="secondary-btn" id="download-recon" disabled hidden>Download Report</button>
         </div>
+        <div class="upload-progress" id="recon-progress" hidden aria-live="polite">
+          <div class="upload-progress-label" id="recon-progress-label">Running reconciliation...</div>
+          <div class="upload-progress-bar">
+            <div class="upload-progress-fill" id="recon-progress-fill" style="width: 0%"></div>
+          </div>
+          <div class="upload-progress-percent" id="recon-progress-percent">0%</div>
+        </div>
         <p id="recon-message" class="form-message" role="status" aria-live="polite"></p>
 
         <div class="table-wrapper" id="recon-table-wrapper" aria-live="polite"></div>
@@ -41,6 +51,6 @@
 
     <script src="config.js?v=1"></script>
     <script src="app.js?v=2"></script>
-    <script src="reconciliation.js?v=7"></script>
+    <script src="reconciliation.js?v=8"></script>
   </body>
 </html>

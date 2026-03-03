@@ -8,7 +8,10 @@
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">Doorstep Banking</div>
+      <div class="brand-row">
+        <img src="FederalLogo.png" alt="Federal Bank Logo" class="brand-logo" />
+        <div class="brand">Doorstep Banking</div>
+      </div>
       <div class="topbar-actions">
         <span class="user-badge" data-user-badge></span>
         <button class="secondary-btn" data-logout>Logout</button>
@@ -40,6 +43,13 @@
           <div class="button-row">
             <button type="button" class="secondary-btn" id="vendor-validate">Validate File</button>
             <button type="submit" class="primary-btn">Upload Vendor MIS</button>
+          </div>
+          <div class="upload-progress" id="vendor-upload-progress" hidden aria-live="polite">
+            <div class="upload-progress-label" id="vendor-progress-label">Uploading...</div>
+            <div class="upload-progress-bar">
+              <div class="upload-progress-fill" id="vendor-progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="upload-progress-percent" id="vendor-progress-percent">0%</div>
           </div>
           <p class="form-message" id="vendor-message" role="status" aria-live="polite"></p>
           <p class="form-message" id="vendor-validate-message" role="status" aria-live="polite"></p>
@@ -88,6 +98,6 @@
     <script src="config.js?v=1"></script>
     <script src="app.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="vendor-upload.js?v=14"></script>
+    <script src="vendor-upload.js?v=15"></script>
   </body>
 </html>

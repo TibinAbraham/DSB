@@ -8,7 +8,10 @@
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">Doorstep Banking</div>
+      <div class="brand-row">
+        <img src="FederalLogo.png" alt="Federal Bank Logo" class="brand-logo" />
+        <div class="brand">Doorstep Banking</div>
+      </div>
       <div class="topbar-actions">
         <span class="user-badge" data-user-badge></span>
         <button class="secondary-btn" data-logout>Logout</button>
@@ -32,6 +35,13 @@
             <input type="file" name="finacleMis" accept=".xlsx,.xls" required />
           </label>
           <button type="submit" class="primary-btn">Upload Finacle MIS</button>
+          <div class="upload-progress" id="finacle-upload-progress" hidden aria-live="polite">
+            <div class="upload-progress-label" id="finacle-progress-label">Uploading...</div>
+            <div class="upload-progress-bar">
+              <div class="upload-progress-fill" id="finacle-progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="upload-progress-percent" id="finacle-progress-percent">0%</div>
+          </div>
           <p class="form-message" id="finacle-message" role="status" aria-live="polite"></p>
         </form>
 
@@ -71,6 +81,6 @@
     <script src="config.js?v=1"></script>
     <script src="app.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="finacle-upload.js?v=5"></script>
+    <script src="finacle-upload.js?v=6"></script>
   </body>
 </html>

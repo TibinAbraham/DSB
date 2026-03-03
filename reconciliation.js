@@ -3,7 +3,53 @@ const reconMessage = document.querySelector("#recon-message");
 const tableWrapper = document.querySelector("#recon-table-wrapper");
 const misDateInput = document.querySelector("#recon-mis-date");
 const downloadButton = document.querySelector("#download-recon");
+const progressContainer = document.querySelector("#recon-progress");
+const progressLabel = document.querySelector("#recon-progress-label");
+const progressFill = document.querySelector("#recon-progress-fill");
+const progressPercent = document.querySelector("#recon-progress-percent");
 const apiBase = window.API_BASE || "";
+
+const showReconProgress = () => {
+  if (progressContainer && progressLabel) {
+    progressLabel.textContent = "Running reconciliation...";
+    progressContainer.hidden = false;
+  }
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+};
+
+const updateReconProgress = (pct) => {
+  const val = Math.min(100, Math.round(pct));
+  if (progressFill) progressFill.style.width = `${val}%`;
+  if (progressPercent) progressPercent.textContent = `${val}%`;
+};
+
+const hideReconProgress = () => {
+  if (progressContainer) progressContainer.hidden = true;
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+};
+
+const startSimulatedProgress = (onComplete) => {
+  let pct = 0;
+  const maxPct = 90;
+  const interval = setInterval(() => {
+    pct += Math.random() * 8 + 4;
+    if (pct >= maxPct) {
+      pct = maxPct;
+      clearInterval(interval);
+    }
+    updateReconProgress(pct);
+  }, 200);
+  return () => {
+    clearInterval(interval);
+    updateReconProgress(100);
+    setTimeout(() => {
+      hideReconProgress();
+      if (onComplete) onComplete();
+    }, 300);
+  };
+};
 
 let latestResults = [];
 
@@ -191,6 +237,12 @@ runReconButton.addEventListener("click", async () => {
   }
   reconMessage.textContent = "Running reconciliation...";
   reconMessage.style.color = "#0f4c81";
+  showReconProgress();
+
+  let finishProgress;
+  const progressPromise = new Promise((resolve) => {
+    finishProgress = startSimulatedProgress(resolve);
+  });
 
   try {
     const response = await fetch(`${apiBase}/api/reconciliation/run`, {
@@ -198,6 +250,9 @@ runReconButton.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json", ...window.getAuthHeaders() },
       body: JSON.stringify({ misDate }),
     });
+    finishProgress();
+    await progressPromise;
+
     if (!response.ok) {
       let detail = "";
       try {
@@ -214,6 +269,8 @@ runReconButton.addEventListener("click", async () => {
       ? "Reconciliation completed."
       : "Reconciliation completed. No results found.";
   } catch (error) {
+    if (finishProgress) finishProgress();
+    await progressPromise;
     reconMessage.textContent = error.message || "Unable to run reconciliation.";
     reconMessage.style.color = "#b42318";
   }

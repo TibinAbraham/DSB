@@ -10,8 +10,72 @@ const historyMessage = document.querySelector("#vendor-history-message");
 const historyFilter = document.querySelector("#vendor-history-filter");
 const validateButton = document.querySelector("#vendor-validate");
 const validateMessage = document.querySelector("#vendor-validate-message");
+const progressContainer = document.querySelector("#vendor-upload-progress");
+const progressLabel = document.querySelector("#vendor-progress-label");
+const progressFill = document.querySelector("#vendor-progress-fill");
+const progressPercent = document.querySelector("#vendor-progress-percent");
 let vendorLookup = {};
 const apiBase = window.API_BASE || "";
+
+const showProgress = (label) => {
+  if (progressContainer && progressLabel) {
+    progressLabel.textContent = label || "Uploading...";
+    progressContainer.hidden = false;
+  }
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+};
+
+const updateProgress = (pct) => {
+  const val = Math.min(100, Math.round(pct));
+  if (progressFill) progressFill.style.width = `${val}%`;
+  if (progressPercent) progressPercent.textContent = `${val}%`;
+};
+
+const hideProgress = () => {
+  if (progressContainer) progressContainer.hidden = true;
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+};
+
+const fetchWithProgress = (url, options) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = options.body;
+    const headers = options.headers || {};
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const pct = (e.loaded / e.total) * 100;
+        updateProgress(pct);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      hideProgress();
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        json: () => Promise.resolve(JSON.parse(xhr.responseText || "{}")),
+        text: () => Promise.resolve(xhr.responseText || ""),
+      });
+    });
+
+    xhr.addEventListener("error", () => {
+      hideProgress();
+      reject(new Error("Network error"));
+    });
+
+    xhr.addEventListener("abort", () => {
+      hideProgress();
+      reject(new Error("Request aborted"));
+    });
+
+    xhr.open(options.method || "POST", url);
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    xhr.send(formData);
+  });
+};
 
 const loadVendors = async () => {
   if (!vendorSelect) return;
@@ -163,6 +227,7 @@ vendorForm.addEventListener("submit", async (event) => {
 
   vendorMessage.textContent = "Uploading Vendor MIS...";
   vendorMessage.style.color = "#0f4c81";
+  showProgress("Uploading Vendor MIS...");
 
   try {
     const payload = new FormData();
@@ -170,7 +235,7 @@ vendorForm.addEventListener("submit", async (event) => {
     payload.append("misDate", misDate);
     payload.append("file", file);
 
-    const response = await fetch(`${apiBase}/api/uploads/vendor`, {
+    const response = await fetchWithProgress(`${apiBase}/api/uploads/vendor`, {
       method: "POST",
       body: payload,
       headers: window.getAuthHeaders(),
@@ -217,6 +282,7 @@ vendorForm.addEventListener("submit", async (event) => {
     }
     loadVendorHistory();
   } catch (error) {
+    hideProgress();
     vendorMessage.textContent = "Upload failed. Please retry.";
     vendorMessage.style.color = "#b42318";
   }
@@ -233,12 +299,13 @@ const runValidation = async () => {
   }
   validateMessage.textContent = "Validating file...";
   validateMessage.style.color = "#0f4c81";
+  showProgress("Validating file...");
   try {
     const payload = new FormData();
     payload.append("vendorName", vendorName);
     payload.append("misDate", misDate);
     payload.append("file", file);
-    const response = await fetch(`${apiBase}/api/uploads/vendor/validate`, {
+    const response = await fetchWithProgress(`${apiBase}/api/uploads/vendor/validate`, {
       method: "POST",
       body: payload,
       headers: window.getAuthHeaders(),
@@ -269,6 +336,7 @@ const runValidation = async () => {
     validateMessage.textContent = `Validation passed. Invalid rows: ${result.invalid_rows ?? 0} of ${result.total_rows ?? ""}.`;
     validateMessage.style.color = "#0f4c81";
   } catch (error) {
+    hideProgress();
     validateMessage.textContent = "Validation failed.";
     validateMessage.style.color = "#b42318";
   }

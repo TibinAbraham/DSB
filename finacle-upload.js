@@ -6,7 +6,71 @@ const previewMessage = document.querySelector("#finacle-preview-message");
 const fileInput = finacleForm?.querySelector('input[type="file"]');
 const historyRows = document.querySelector("#finacle-history-rows");
 const historyMessage = document.querySelector("#finacle-history-message");
+const progressContainer = document.querySelector("#finacle-upload-progress");
+const progressLabel = document.querySelector("#finacle-progress-label");
+const progressFill = document.querySelector("#finacle-progress-fill");
+const progressPercent = document.querySelector("#finacle-progress-percent");
 const apiBase = window.API_BASE || "";
+
+const showProgress = (label) => {
+  if (progressContainer && progressLabel) {
+    progressLabel.textContent = label || "Uploading...";
+    progressContainer.hidden = false;
+  }
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+};
+
+const updateProgress = (pct) => {
+  const val = Math.min(100, Math.round(pct));
+  if (progressFill) progressFill.style.width = `${val}%`;
+  if (progressPercent) progressPercent.textContent = `${val}%`;
+};
+
+const hideProgress = () => {
+  if (progressContainer) progressContainer.hidden = true;
+  if (progressFill) progressFill.style.width = "0%";
+  if (progressPercent) progressPercent.textContent = "0%";
+};
+
+const fetchWithProgress = (url, options) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = options.body;
+    const headers = options.headers || {};
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const pct = (e.loaded / e.total) * 100;
+        updateProgress(pct);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      hideProgress();
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        json: () => Promise.resolve(JSON.parse(xhr.responseText || "{}")),
+        text: () => Promise.resolve(xhr.responseText || ""),
+      });
+    });
+
+    xhr.addEventListener("error", () => {
+      hideProgress();
+      reject(new Error("Network error"));
+    });
+
+    xhr.addEventListener("abort", () => {
+      hideProgress();
+      reject(new Error("Request aborted"));
+    });
+
+    xhr.open(options.method || "POST", url);
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    xhr.send(formData);
+  });
+};
 
 const clearPreview = () => {
   if (previewHead) previewHead.innerHTML = "";
@@ -119,13 +183,14 @@ finacleForm.addEventListener("submit", async (event) => {
 
   finacleMessage.textContent = "Uploading Finacle MIS...";
   finacleMessage.style.color = "#0f4c81";
+  showProgress("Uploading Finacle MIS...");
 
   try {
     const payload = new FormData();
     payload.append("misDate", misDate);
     payload.append("file", file);
 
-    const response = await fetch(`${apiBase}/api/uploads/finacle`, {
+    const response = await fetchWithProgress(`${apiBase}/api/uploads/finacle`, {
       method: "POST",
       body: payload,
       headers: window.getAuthHeaders(),
@@ -152,6 +217,7 @@ finacleForm.addEventListener("submit", async (event) => {
     finacleMessage.textContent = `Finacle MIS uploaded: ${file.name} (${misDate}).`;
     loadFinacleHistory();
   } catch (error) {
+    hideProgress();
     finacleMessage.textContent = "Upload failed. Please retry.";
     finacleMessage.style.color = "#b42318";
   }
