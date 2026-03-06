@@ -38,8 +38,12 @@
             <h3>Compute & View</h3>
             <div class="charge-controls">
               <label class="field">
-                <span class="label">Month (YYYYMM)</span>
-                <input type="text" id="charge-month-vendor" placeholder="e.g. 202501" maxlength="6" />
+                <span class="label">From Date</span>
+                <input type="date" id="charge-date-from-vendor" />
+              </label>
+              <label class="field">
+                <span class="label">To Date</span>
+                <input type="date" id="charge-date-to-vendor" />
               </label>
               <button class="primary-btn" id="compute-vendor-btn">Compute Vendor Charges</button>
               <button class="secondary-btn" id="refresh-vendor">Refresh</button>
@@ -69,6 +73,30 @@
           <div class="charge-subsection">
             <h3>Vendor Charge Configuration</h3>
             <p class="subtitle">Configure base charge per vendor and pickup type (Beat/Call). Pickup rules define free Call limit.</p>
+            <div class="config-block" style="margin-bottom: 20px;">
+              <h4>View Current Configuration</h4>
+              <label class="field">
+                <span class="label">Select vendor</span>
+                <select id="vendor-charge-view-vendor">
+                  <option value="">Select vendor to view configuration</option>
+                </select>
+              </label>
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Pickup Type</th>
+                      <th>Base Charge (₹)</th>
+                      <th>Effective From</th>
+                      <th>Effective To</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vendor-charge-config-rows"></tbody>
+                </table>
+              </div>
+              <p class="form-message" id="vendor-charge-config-message"></p>
+            </div>
             <div class="config-grid">
               <div class="config-block">
                 <h4>Vendor Charge Master</h4>
@@ -114,8 +142,12 @@
             <h3>Compute & View</h3>
             <div class="charge-controls">
               <label class="field">
-                <span class="label">Month (YYYYMM)</span>
-                <input type="text" id="charge-month-customer" placeholder="e.g. 202501" maxlength="6" />
+                <span class="label">From Date</span>
+                <input type="date" id="charge-date-from-customer" />
+              </label>
+              <label class="field">
+                <span class="label">To Date</span>
+                <input type="date" id="charge-date-to-customer" />
               </label>
               <button class="primary-btn" id="compute-customer-btn">Compute Customer Charges</button>
               <button class="secondary-btn" id="refresh-customer">Refresh</button>
@@ -184,7 +216,7 @@
                   </table>
                 </div>
               </div>
-              <div class="config-block">
+              <div class="config-block hidden" id="charge-config-global-block">
                 <h4>Charge Config (Global)</h4>
                 <form id="charge-config-form" class="card-form">
                   <input type="text" name="configCode" placeholder="Config code" required />
@@ -226,6 +258,6 @@
 
     <script src="config.js?v=1"></script>
     <script src="app.js?v=4"></script>
-    <script src="charges.js?v=3"></script>
+    <script src="charges.js?v=4"></script>
   </body>
 </html>

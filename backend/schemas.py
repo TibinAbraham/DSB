@@ -150,6 +150,9 @@ class VendorMasterResponse(BaseModel):
 class BankStoreRequest(BaseModel):
     bank_store_code: str
     store_name: Optional[str] = None
+    customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    account_no: Optional[str] = None
     sol_id: Optional[str] = None
     daily_pickup_limit: Optional[float] = None
     effective_from: date
@@ -161,6 +164,9 @@ class BankStoreRequest(BaseModel):
 class BankStoreResponse(BaseModel):
     bank_store_code: str
     store_name: Optional[str]
+    customer_id: Optional[str]
+    customer_name: Optional[str]
+    account_no: Optional[str]
     status: str
     effective_from: date
 

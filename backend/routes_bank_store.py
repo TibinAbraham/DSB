@@ -16,14 +16,22 @@ router = APIRouter(prefix="/api/bank-stores", tags=["bank-stores"])
 
 
 @router.get("")
-def list_bank_stores(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR"))):
+def list_bank_stores(
+    include_inactive: bool = False,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
     db = SessionLocal()
-    enforce_month_unlocked(db, payload.effective_from.strftime("%Y%m"))
-    stores = db.query(BankStoreMaster).filter(BankStoreMaster.status == "ACTIVE").all()
+    query = db.query(BankStoreMaster)
+    if not include_inactive:
+        query = query.filter(BankStoreMaster.status == "ACTIVE")
+    stores = query.all()
     result = [
         {
             "bank_store_code": s.bank_store_code,
             "store_name": s.store_name,
+            "customer_id": s.customer_id,
+            "customer_name": s.customer_name,
+            "account_no": s.account_no,
             "status": s.status,
             "effective_from": s.effective_from,
         }
@@ -41,9 +49,18 @@ def request_bank_store(payload: BankStoreRequest, user: AuthUser = Depends(requi
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Maker mismatch")
 
     db = SessionLocal()
+    enforce_month_unlocked(db, payload.effective_from.strftime("%Y%m"))
+    existing = db.query(BankStoreMaster).filter(BankStoreMaster.bank_store_code == payload.bank_store_code).first()
+    if existing:
+        db.close()
+        raise HTTPException(status_code=400, detail="Bank store code already exists or pending approval")
+
     store = BankStoreMaster(
         bank_store_code=payload.bank_store_code,
         store_name=payload.store_name,
+        customer_id=payload.customer_id or None,
+        customer_name=payload.customer_name or None,
+        account_no=payload.account_no or None,
         sol_id=payload.sol_id,
         daily_pickup_limit=payload.daily_pickup_limit,
         status="INACTIVE",
@@ -64,10 +81,13 @@ def request_bank_store(payload: BankStoreRequest, user: AuthUser = Depends(requi
         status="PENDING",
     )
     db.add(approval)
+    db.flush()
     log_audit(db, "BANK_STORE_MASTER", store.store_id, "REQUEST", None, payload.model_dump(), user.employee_id)
+    approval_id = approval.approval_id
+    store_id = store.store_id
     db.commit()
     db.close()
-    return {"approval_id": approval.approval_id, "store_id": store.store_id}
+    return {"approval_id": approval_id, "store_id": store_id}
 
 
 @router.post("/requests/{approval_id}/approve")

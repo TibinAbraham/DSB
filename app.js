@@ -8,6 +8,7 @@ const roleConfig = {
     "vendor-upload",
     "mapping",
     "vendor-onboarding",
+    "store-onboarding",
     "reconciliation",
     "reconciliation-results",
     "charges",
@@ -22,6 +23,7 @@ const roleConfig = {
     "vendor-upload",
     "mapping",
     "vendor-onboarding",
+    "store-onboarding",
     "reconciliation",
     "reconciliation-results",
     "approvals",
@@ -91,6 +93,41 @@ const applyRoleVisibility = (user) => {
     userBadge.textContent = activeUser
       ? `${displayName}${displayId} - ${activeUser.role}`
       : "Guest";
+  }
+
+  if (allowed.has("approvals")) {
+    updateApprovalNotificationBadge();
+  }
+};
+
+const updateApprovalNotificationBadge = async () => {
+  const approvalsCard = document.querySelector('[data-page="approvals"]');
+  if (!approvalsCard) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/api/approvals/pending/count`, {
+      headers: window.getAuthHeaders(),
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const count = data?.count ?? 0;
+
+    let badge = approvalsCard.querySelector(".nav-card-badge");
+    if (count > 0) {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "nav-card-badge";
+        badge.setAttribute("aria-live", "polite");
+        approvalsCard.appendChild(badge);
+      }
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.title = `${count} pending approval${count !== 1 ? "s" : ""}`;
+      badge.hidden = false;
+    } else if (badge) {
+      badge.hidden = true;
+    }
+  } catch (error) {
+    /* ignore */
   }
 };
 

@@ -12,6 +12,7 @@ from auth import AuthUser, require_roles
 from audit import log_audit
 from db import SessionLocal
 from models import (
+    BankStoreMaster,
     CanonicalTransaction,
     FinacleInvalidRecord,
     FinacleRawStaging,
@@ -137,16 +138,7 @@ def upload_finacle(
     db.flush()
 
     invalid_rows = 0
-    has_unmapped = False
-    valid_rows = []
-    has_unmapped = False
-    valid_rows = []
-    has_unmapped = False
-    valid_rows = []
-    has_unmapped = False
-    valid_rows = []
-    has_unmapped = False
-    valid_rows = []
+    has_unmapped_stores = False
     for index, row in df.iterrows():
         row_payload = json.dumps(row.to_dict(), default=str)
         db.add(
@@ -176,6 +168,30 @@ def upload_finacle(
             )
             continue
 
+        store_row = (
+            db.query(BankStoreMaster)
+            .filter(BankStoreMaster.bank_store_code == bank_store_code)
+            .filter(BankStoreMaster.status == "ACTIVE")
+            .filter(BankStoreMaster.effective_from <= remittance_date)
+            .filter(
+                (BankStoreMaster.effective_to.is_(None))
+                | (BankStoreMaster.effective_to >= remittance_date)
+            )
+            .first()
+        )
+        if not store_row:
+            invalid_rows += 1
+            has_unmapped_stores = True
+            db.add(
+                FinacleInvalidRecord(
+                    batch_id=batch.batch_id,
+                    row_number=index + 1,
+                    reason="Store not onboarded – add store in Store Onboarding first",
+                    row_payload=row_payload,
+                )
+            )
+            continue
+
         txn = CanonicalTransaction(
             source="FINACLE",
             bank_store_code=bank_store_code,
@@ -200,7 +216,12 @@ def upload_finacle(
             )
         )
 
-    batch.status = "PROCESSED" if invalid_rows < len(df.index) else "FAILED"
+    if has_unmapped_stores:
+        batch.status = "FAILED"
+    elif invalid_rows < len(df.index):
+        batch.status = "PROCESSED"
+    else:
+        batch.status = "FAILED"
 
     log_audit(
         db,
@@ -208,7 +229,7 @@ def upload_finacle(
         entity_id=batch.batch_id,
         action="FINACLE_UPLOAD",
         old_data=None,
-        new_data=f"rows={len(df.index)},invalid={invalid_rows}",
+        new_data=f"rows={len(df.index)},invalid={invalid_rows},unmapped_stores={has_unmapped_stores}",
         changed_by=user.employee_id,
     )
     db.flush()

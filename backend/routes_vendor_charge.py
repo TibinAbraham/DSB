@@ -6,13 +6,49 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from auth import AuthUser, require_roles
 from audit import log_audit
 from db import SessionLocal
-from models import ApprovalRequest, VendorChargeMaster
+from models import ApprovalRequest, VendorChargeMaster, VendorMaster
 from schemas import ApprovalDecision, VendorChargeRequest
 from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
 from utils_month_lock import enforce_month_unlocked
 
 
 router = APIRouter(prefix="/api/vendor-charges", tags=["vendor-charges"])
+
+
+@router.get("")
+def list_vendor_charges(
+    vendor_id: int | None = None,
+    include_inactive: bool = False,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    """List vendor charge configurations, optionally filtered by vendor."""
+    db = SessionLocal()
+    query = (
+        db.query(VendorChargeMaster, VendorMaster.vendor_name, VendorMaster.vendor_code)
+        .outerjoin(VendorMaster, VendorChargeMaster.vendor_id == VendorMaster.vendor_id)
+        .order_by(VendorChargeMaster.vendor_id, VendorChargeMaster.pickup_type, VendorChargeMaster.effective_from.desc())
+    )
+    if vendor_id is not None:
+        query = query.filter(VendorChargeMaster.vendor_id == vendor_id)
+    if not include_inactive:
+        query = query.filter(VendorChargeMaster.status == "ACTIVE")
+    rows = query.all()
+    result = [
+        {
+            "vendor_charge_id": c.vendor_charge_id,
+            "vendor_id": c.vendor_id,
+            "vendor_name": name or "",
+            "vendor_code": code or "",
+            "pickup_type": c.pickup_type,
+            "base_charge": float(c.base_charge or 0),
+            "status": c.status,
+            "effective_from": c.effective_from.isoformat() if c.effective_from else None,
+            "effective_to": c.effective_to.isoformat() if c.effective_to else None,
+        }
+        for c, name, code in rows
+    ]
+    db.close()
+    return result
 
 
 @router.post("/requests")
@@ -46,10 +82,13 @@ def request_vendor_charge(
         status="PENDING",
     )
     db.add(approval)
+    db.flush()
     log_audit(db, "VENDOR_CHARGE", charge.vendor_charge_id, "REQUEST", None, payload.model_dump(), user.employee_id)
+    approval_id = approval.approval_id
+    vendor_charge_id = charge.vendor_charge_id
     db.commit()
     db.close()
-    return {"approval_id": approval.approval_id, "vendor_charge_id": charge.vendor_charge_id}
+    return {"approval_id": approval_id, "vendor_charge_id": vendor_charge_id}
 
 
 @router.post("/requests/{approval_id}/approve")

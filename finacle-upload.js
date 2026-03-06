@@ -214,7 +214,16 @@ finacleForm.addEventListener("submit", async (event) => {
       return;
     }
 
-    finacleMessage.textContent = `Finacle MIS uploaded: ${file.name} (${misDate}).`;
+    const result = await response.json();
+    if (result.status === "FAILED" && result.invalid_rows > 0) {
+      finacleMessage.textContent =
+        `Upload failed: ${result.invalid_rows} row(s) invalid. ` +
+        "Stores must be onboarded in Store Onboarding first. Add missing stores and retry.";
+      finacleMessage.style.color = "#b42318";
+    } else {
+      finacleMessage.textContent = `Finacle MIS uploaded: ${file.name} (${misDate}).`;
+      finacleMessage.style.color = "#0f4c81";
+    }
     loadFinacleHistory();
   } catch (error) {
     hideProgress();

@@ -13,6 +13,15 @@ from utils_approval import append_comment_history
 router = APIRouter(prefix="/api/approvals", tags=["approvals"])
 
 
+@router.get("/pending/count")
+def pending_count(user: AuthUser = Depends(require_roles("CHECKER", "ADMIN"))):
+    """Return count of pending approvals for dashboard notification badge."""
+    db = SessionLocal()
+    count = db.query(ApprovalRequest).filter(ApprovalRequest.status == "PENDING").count()
+    db.close()
+    return {"count": count}
+
+
 @router.get("/pending")
 def list_pending(user: AuthUser = Depends(require_roles("CHECKER", "ADMIN"))):
     db = SessionLocal()

@@ -73,6 +73,8 @@ def _enforce_unlocked(db, month_key):
 @router.get("/vendor/summary")
 def list_vendor_charges(
     month_key: str | None = None,
+    month_from: str | None = None,
+    month_to: str | None = None,
     user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
 ):
     """List vendor charge summaries for maker/admin view."""
@@ -80,7 +82,9 @@ def list_vendor_charges(
     q = db.query(VendorChargeSummary, VendorMaster.vendor_name, VendorMaster.vendor_code).outerjoin(
         VendorMaster, VendorChargeSummary.vendor_id == VendorMaster.vendor_id
     )
-    if month_key:
+    if month_from and month_to:
+        q = q.filter(VendorChargeSummary.month_key >= month_from, VendorChargeSummary.month_key <= month_to)
+    elif month_key:
         q = q.filter(VendorChargeSummary.month_key == month_key)
     rows = q.order_by(VendorChargeSummary.month_key.desc(), VendorChargeSummary.vendor_id).all()
     result = [
@@ -109,12 +113,16 @@ def list_vendor_charges(
 @router.get("/customer/summary")
 def list_customer_charges(
     month_key: str | None = None,
+    month_from: str | None = None,
+    month_to: str | None = None,
     user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
 ):
     """List customer charge summaries for maker/admin view."""
     db = SessionLocal()
     q = db.query(CustomerChargeSummary)
-    if month_key:
+    if month_from and month_to:
+        q = q.filter(CustomerChargeSummary.month_key >= month_from, CustomerChargeSummary.month_key <= month_to)
+    elif month_key:
         q = q.filter(CustomerChargeSummary.month_key == month_key)
     rows = q.order_by(CustomerChargeSummary.month_key.desc(), CustomerChargeSummary.customer_id).all()
     result = [

@@ -7,6 +7,7 @@ const clarificationRows = document.querySelector("#clarification-rows");
 const clarificationMessage = document.querySelector("#clarification-message");
 const apiBase = window.API_BASE || "";
 let vendorOptions = [];
+let storeOptions = [];
 let mappingsCache = [];
 const currentUser = () =>
   sessionStorage.getItem("currentUser")
@@ -28,6 +29,28 @@ const loadVendors = async () => {
     }));
   } catch (error) {
     vendorOptions = [];
+  }
+};
+
+const loadStores = async () => {
+  try {
+    const response = await fetch(`${apiBase}/api/bank-stores`, {
+      headers: window.getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to load stores");
+    }
+    const stores = await response.json();
+    storeOptions = stores.map((store) => ({
+      bank_store_code: store.bank_store_code,
+      store_name: store.store_name || "",
+      customer_id: store.customer_id || "",
+      customer_name: store.customer_name || "",
+      account_no: store.account_no || "",
+      label: `${store.bank_store_code}${store.store_name ? ` - ${store.store_name}` : ""}`,
+    }));
+  } catch (error) {
+    storeOptions = [];
   }
 };
 
@@ -56,6 +79,44 @@ const createVendorSelect = (selectedId) => {
   return select;
 };
 
+const createBankStoreSelect = (selectedCode, customerIdInput, customerNameInput, accountNoInput) => {
+  const select = document.createElement("select");
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = storeOptions.length ? "Select bank store" : "No stores – onboard first";
+  select.appendChild(placeholder);
+  if (selectedCode && !storeOptions.some((s) => s.bank_store_code === selectedCode)) {
+    const legacyOpt = document.createElement("option");
+    legacyOpt.value = selectedCode;
+    legacyOpt.textContent = `${selectedCode} (not in active list)`;
+    legacyOpt.dataset.customerId = "";
+    legacyOpt.dataset.customerName = "";
+    legacyOpt.dataset.accountNo = "";
+    select.appendChild(legacyOpt);
+  }
+  storeOptions.forEach((store) => {
+    const option = document.createElement("option");
+    option.value = store.bank_store_code;
+    option.textContent = store.label;
+    option.dataset.customerId = store.customer_id;
+    option.dataset.customerName = store.customer_name;
+    option.dataset.accountNo = store.account_no;
+    if (selectedCode && store.bank_store_code === selectedCode) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+  select.addEventListener("change", () => {
+    const opt = select.options[select.selectedIndex];
+    if (opt && opt.value && customerIdInput && customerNameInput && accountNoInput) {
+      customerIdInput.value = opt.dataset.customerId || "";
+      customerNameInput.value = opt.dataset.customerName || "";
+      accountNoInput.value = opt.dataset.accountNo || "";
+    }
+  });
+  return select;
+};
+
 const getVendorLabel = (vendorId) => {
   const match = vendorOptions.find((vendor) => String(vendor.id) === String(vendorId));
   return match ? match.label : vendorId ?? "";
@@ -70,56 +131,74 @@ const formatToInputDate = (value) => {
   return parsed.toISOString().slice(0, 10);
 };
 
+const createFieldBlock = (labelText, control) => {
+  const block = document.createElement("label");
+  block.className = "field";
+  const span = document.createElement("span");
+  span.className = "label";
+  span.textContent = labelText;
+  block.appendChild(span);
+  block.appendChild(control);
+  return block;
+};
+
 const buildRow = (row = {}) => {
-  const tr = document.createElement("tr");
+  const block = document.createElement("div");
+  block.className = "mapping-row-block";
 
-  const vendorCell = document.createElement("td");
-  const vendorSelect = createVendorSelect(row.vendor_id);
-  vendorCell.appendChild(vendorSelect);
-
-  const vendorStoreCell = document.createElement("td");
-  const vendorStoreInput = createInput("Vendor store code");
-  vendorStoreInput.value = row.vendor_store_code || "";
-  vendorStoreCell.appendChild(vendorStoreInput);
-
-  const bankStoreCell = document.createElement("td");
-  const bankStoreInput = createInput("Bank store code");
-  bankStoreInput.value = row.bank_store_code || "";
-  bankStoreCell.appendChild(bankStoreInput);
-
-  const customerIdCell = document.createElement("td");
   const customerIdInput = createInput("Customer ID");
   customerIdInput.value = row.customer_id || "";
-  customerIdCell.appendChild(customerIdInput);
+  customerIdInput.dataset.field = "customer_id";
 
-  const customerNameCell = document.createElement("td");
   const customerNameInput = createInput("Customer name");
   customerNameInput.value = row.customer_name || "";
-  customerNameCell.appendChild(customerNameInput);
+  customerNameInput.dataset.field = "customer_name";
 
-  const accountNoCell = document.createElement("td");
   const accountNoInput = createInput("Account number");
   accountNoInput.value = row.account_no || "";
-  accountNoCell.appendChild(accountNoInput);
+  accountNoInput.dataset.field = "account_no";
 
-  const effectiveFromCell = document.createElement("td");
+  const vendorSelect = createVendorSelect(row.vendor_id);
+  vendorSelect.dataset.field = "vendor";
+
+  const bankStoreSelect = createBankStoreSelect(
+    row.bank_store_code,
+    customerIdInput,
+    customerNameInput,
+    accountNoInput,
+  );
+  bankStoreSelect.dataset.field = "bank_store";
+  if (row.bank_store_code && storeOptions.length) {
+    const store = storeOptions.find((s) => s.bank_store_code === row.bank_store_code);
+    if (store) {
+      customerIdInput.value = row.customer_id ?? store.customer_id;
+      customerNameInput.value = row.customer_name ?? store.customer_name;
+      accountNoInput.value = row.account_no ?? store.account_no;
+    }
+  }
+
+  const vendorStoreInput = createInput("Vendor store code");
+  vendorStoreInput.value = row.vendor_store_code || "";
+  vendorStoreInput.dataset.field = "vendor_store";
+
   const effectiveFromInput = document.createElement("input");
   effectiveFromInput.type = "date";
   effectiveFromInput.value = formatToInputDate(row.effective_from);
-  effectiveFromCell.appendChild(effectiveFromInput);
+  effectiveFromInput.dataset.field = "effective_from";
 
-  tr.append(
-    vendorCell,
-    vendorStoreCell,
-    bankStoreCell,
-    customerIdCell,
-    customerNameCell,
-    accountNoCell,
-    effectiveFromCell,
+  block.append(
+    createFieldBlock("Vendor", vendorSelect),
+    createFieldBlock("Bank Store Code", bankStoreSelect),
+    createFieldBlock("Vendor Store Code", vendorStoreInput),
+    createFieldBlock("Customer ID", customerIdInput),
+    createFieldBlock("Customer Name", customerNameInput),
+    createFieldBlock("Account No", accountNoInput),
+    createFieldBlock("Effective From", effectiveFromInput),
   );
 
-  return tr;
+  return block;
 };
+
 
 const loadRows = async () => {
   rowsContainer.innerHTML = "";
@@ -157,8 +236,8 @@ const loadMappingsList = async () => {
       const deleteDisabled = statusValue === "INACTIVE" ? "disabled" : "";
       tr.innerHTML = `
         <td>${getVendorLabel(row.vendor_id)}</td>
-        <td>${row.vendor_store_code ?? ""}</td>
         <td>${row.bank_store_code ?? ""}</td>
+        <td>${row.vendor_store_code ?? ""}</td>
         <td>${row.customer_id ?? ""}</td>
         <td>${row.customer_name ?? ""}</td>
         <td>${row.account_no ?? ""}</td>
@@ -181,17 +260,23 @@ const loadMappingsList = async () => {
 
 const collectRows = () => {
   const rows = [];
-  rowsContainer.querySelectorAll("tr").forEach((tr) => {
-    const vendorSelect = tr.querySelector("select");
-    const inputs = tr.querySelectorAll("input");
+  rowsContainer.querySelectorAll(".mapping-row-block").forEach((block) => {
+    const vendorSelect = block.querySelector('select[data-field="vendor"]');
+    const bankStoreSelect = block.querySelector('select[data-field="bank_store"]');
+    const vendorStoreInput = block.querySelector('input[data-field="vendor_store"]');
+    const customerIdInput = block.querySelector('input[data-field="customer_id"]');
+    const customerNameInput = block.querySelector('input[data-field="customer_name"]');
+    const accountNoInput = block.querySelector('input[data-field="account_no"]');
+    const effectiveFromInput = block.querySelector('input[data-field="effective_from"]');
+
     const row = {
-      vendor_id: vendorSelect.value ? Number(vendorSelect.value) : null,
-      vendor_store_code: inputs[0].value.trim(),
-      bank_store_code: inputs[1].value.trim(),
-      customer_id: inputs[2].value.trim(),
-      customer_name: inputs[3].value.trim(),
-      account_no: inputs[4].value.trim(),
-      effective_from: inputs[5].value ? inputs[5].value : null,
+      vendor_id: vendorSelect?.value ? Number(vendorSelect.value) : null,
+      bank_store_code: bankStoreSelect?.value?.trim() || "",
+      vendor_store_code: vendorStoreInput?.value?.trim() || "",
+      customer_id: customerIdInput?.value?.trim() || "",
+      customer_name: customerNameInput?.value?.trim() || "",
+      account_no: accountNoInput?.value?.trim() || "",
+      effective_from: effectiveFromInput?.value || null,
     };
 
     const hasData = Object.values(row).some((value) => value);
@@ -416,7 +501,7 @@ const init = async () => {
   bindAddRow();
   bindEditMapping();
   bindDeleteMapping();
-  await loadVendors();
+  await Promise.all([loadVendors(), loadStores()]);
   loadRows();
   loadClarifications();
   loadMappingsList();

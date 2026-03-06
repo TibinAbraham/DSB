@@ -22,7 +22,9 @@
       <section class="upload-card" aria-labelledby="finacle-title">
         <header class="card-header">
           <h1 id="finacle-title">Finacle MIS Upload</h1>
-          <p class="subtitle">Upload Finacle MIS Excel file for T+1 data.</p>
+          <p class="subtitle">
+            Upload Finacle MIS Excel file for T+1 data. All stores (STORE_CODE) must be onboarded in Store Onboarding first.
+          </p>
         </header>
 
         <form id="finacle-upload-form" class="card-form" novalidate>
@@ -47,8 +49,9 @@
 
         <section class="table-wrapper preview" aria-labelledby="finacle-preview-title">
           <h2 id="finacle-preview-title">Preview (full sheet)</h2>
+          <p class="preview-scroll-hint">Scroll left or right to see all columns.</p>
           <p class="form-message" id="finacle-preview-message"></p>
-          <table>
+          <table class="preview-table">
             <thead id="finacle-preview-head"></thead>
             <tbody id="finacle-preview-body"></tbody>
           </table>
