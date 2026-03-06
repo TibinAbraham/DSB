@@ -77,6 +77,19 @@ const clearPreview = () => {
   if (previewBody) previewBody.innerHTML = "";
 };
 
+/** Convert Excel serial date (e.g. 45672) to YYYY-MM-DD using IST (India) */
+const formatExcelDate = (val, header) => {
+  if (header !== "TRAN_DATE") return val;
+  const n = Number(val);
+  if (!Number.isFinite(n) || n < 1000 || n > 1000000) return val;
+  const utcMs = Date.UTC(1899, 11, 30) + n * 24 * 60 * 60 * 1000;
+  const d = new Date(utcMs);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 const renderPreview = (rows) => {
   if (!previewHead || !previewBody) return;
   clearPreview();
@@ -98,9 +111,9 @@ const renderPreview = (rows) => {
 
   rows.slice(1).forEach((row) => {
     const tr = document.createElement("tr");
-    headerRow.forEach((_, index) => {
+    headerRow.forEach((header, index) => {
       const td = document.createElement("td");
-      td.textContent = row[index] ?? "";
+      td.textContent = formatExcelDate(row[index], String(header).trim()) ?? "";
       tr.appendChild(td);
     });
     previewBody.appendChild(tr);
@@ -127,9 +140,9 @@ const renderPreviewFromHeaders = (headers, rows) => {
 
   rows.forEach((row) => {
     const tr = document.createElement("tr");
-    headers.forEach((_, index) => {
+    headers.forEach((header, index) => {
       const td = document.createElement("td");
-      td.textContent = row[index] ?? "";
+      td.textContent = formatExcelDate(row[index], String(header).trim()) ?? "";
       tr.appendChild(td);
     });
     previewBody.appendChild(tr);

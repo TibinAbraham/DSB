@@ -58,6 +58,12 @@ def _parse_date(value):
         return None
     if isinstance(value, datetime):
         return value.date()
+    # Excel stores dates as serial numbers (days since 1899-12-30)
+    if isinstance(value, (int, float)) and 1000 < value < 1000000:
+        try:
+            return (pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(value))).date()
+        except Exception:
+            pass
     try:
         return pd.to_datetime(value, dayfirst=True).date()
     except Exception:
@@ -274,6 +280,17 @@ def list_finacle_batches(
     return result
 
 
+def _format_finacle_cell(key, val):
+    """Format TRAN_DATE from Excel serial to YYYY-MM-DD for preview."""
+    if key == "TRAN_DATE" and isinstance(val, (int, float)) and 1000 < val < 1000000:
+        try:
+            dt = pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(val))
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return val if val is not None and not (isinstance(val, float) and pd.isna(val)) else ""
+
+
 @router.get("/finacle/{batch_id}/preview")
 def preview_finacle_batch(
     batch_id: int,
@@ -299,7 +316,7 @@ def preview_finacle_batch(
         except json.JSONDecodeError:
             parsed.append({})
     headers = list(parsed[0].keys()) if parsed else []
-    data_rows = [[item.get(key, "") for key in headers] for item in parsed]
+    data_rows = [[_format_finacle_cell(key, item.get(key)) for key in headers] for item in parsed]
     log_audit(db, "UPLOAD", batch_id, "PREVIEW", None, f"rows={len(parsed)}", user.employee_id)
     db.commit()
     db.close()
@@ -330,6 +347,15 @@ def download_finacle_batch(
             parsed.append({})
     headers = list(parsed[0].keys()) if parsed else []
     df = pd.DataFrame(parsed, columns=headers if headers else None)
+    if "TRAN_DATE" in df.columns:
+        def _excel_serial_to_date(val):
+            if isinstance(val, (int, float)) and 1000 < val < 1000000:
+                try:
+                    return (pd.Timestamp("1899-12-30") + pd.Timedelta(days=float(val))).strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+            return val
+        df["TRAN_DATE"] = df["TRAN_DATE"].apply(_excel_serial_to_date)
     buffer = io.BytesIO()
     df.to_excel(buffer, index=False)
     buffer.seek(0)

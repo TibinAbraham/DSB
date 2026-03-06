@@ -37,12 +37,16 @@ const loadStores = async () => {
       const displayStatus =
         store.status === "INACTIVE" ? "INACTIVE (Pending Approval)" : store.status;
       const row = document.createElement("tr");
+      const effectiveFrom = store.effective_from
+        ? new Date(store.effective_from).toISOString().slice(0, 10)
+        : "";
       row.innerHTML = `
         <td>${store.bank_store_code ?? ""}</td>
         <td>${store.store_name ?? ""}</td>
         <td>${store.customer_id ?? ""}</td>
         <td>${store.customer_name ?? ""}</td>
         <td>${store.account_no ?? ""}</td>
+        <td>${effectiveFrom}</td>
         <td>${displayStatus}</td>
       `;
       storeRows.appendChild(row);

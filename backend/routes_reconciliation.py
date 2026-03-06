@@ -83,26 +83,17 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
         key = (f.bank_store_code, date_key)
         finacle_agg[key] = (finacle_agg.get(key, 0.0) + float(f.remittance_amount or 0))
 
+    vendor_id_by_batch = {b.batch_id: b.vendor_id for b in vendor_batches}
     vendor_agg = {}
     for v in vendor:
-        if not v.vendor_store_code or not v.pickup_date:
+        if not v.bank_store_code or not v.pickup_date:
             continue
-        mapping_query = (
-            db.query(VendorStoreMappingMaster.bank_store_code, VendorMaster.vendor_name)
-            .join(VendorMaster, VendorStoreMappingMaster.vendor_id == VendorMaster.vendor_id)
-            .filter(VendorStoreMappingMaster.vendor_store_code == v.vendor_store_code)
-            .filter(VendorStoreMappingMaster.status == "ACTIVE")
-            .filter(VendorStoreMappingMaster.effective_from <= v.pickup_date)
-            .filter(
-                (VendorStoreMappingMaster.effective_to.is_(None))
-                | (VendorStoreMappingMaster.effective_to >= v.pickup_date)
-            )
-        )
-        mapped_bank = mapping_query.first()
-        if not mapped_bank:
-            continue
-        bank_store_code, vendor_name = mapped_bank
-        key = (bank_store_code, v.pickup_date)
+        vendor_id = vendor_id_by_batch.get(v.raw_batch_id)
+        vendor_name = None
+        if vendor_id:
+            vm = db.query(VendorMaster.vendor_name).filter(VendorMaster.vendor_id == vendor_id).first()
+            vendor_name = vm[0] if vm else None
+        key = (v.bank_store_code, v.pickup_date)
         entry = vendor_agg.setdefault(key, {"amount": 0.0, "vendor_names": set()})
         entry["amount"] += float(v.pickup_amount or 0)
         if vendor_name:
@@ -120,10 +111,6 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
             db.query(BankStoreMaster.store_name)
             .filter(BankStoreMaster.bank_store_code == bank_store_code)
             .filter(BankStoreMaster.status == "ACTIVE")
-            .filter(BankStoreMaster.effective_from <= date_key)
-            .filter(
-                (BankStoreMaster.effective_to.is_(None)) | (BankStoreMaster.effective_to >= date_key)
-            )
             .first()
         )
         store_name = store_row[0] if store_row else None
@@ -279,11 +266,6 @@ def list_results(misDate: str, user: AuthUser = Depends(require_roles("MAKER", "
             db.query(BankStoreMaster.store_name)
             .filter(BankStoreMaster.bank_store_code == r.bank_store_code)
             .filter(BankStoreMaster.status == "ACTIVE")
-            .filter(BankStoreMaster.effective_from <= date_key)
-            .filter(
-                (BankStoreMaster.effective_to.is_(None))
-                | (BankStoreMaster.effective_to >= date_key)
-            )
             .first()
         )
         store_name = store_row[0] if store_row else None
@@ -296,11 +278,6 @@ def list_results(misDate: str, user: AuthUser = Depends(require_roles("MAKER", "
             )
             .filter(VendorStoreMappingMaster.bank_store_code == r.bank_store_code)
             .filter(VendorStoreMappingMaster.status == "ACTIVE")
-            .filter(VendorStoreMappingMaster.effective_from <= date_key)
-            .filter(
-                (VendorStoreMappingMaster.effective_to.is_(None))
-                | (VendorStoreMappingMaster.effective_to >= date_key)
-            )
             .all()
         )
         vendor_names = ", ".join(sorted({row[0] for row in vendor_rows if row and row[0]}))
