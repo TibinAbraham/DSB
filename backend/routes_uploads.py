@@ -138,7 +138,8 @@ def upload_finacle(
         raise HTTPException(status_code=409, detail="Finacle MIS already uploaded for this date")
 
     df = pd.read_excel(file.file)
-    headers = set(df.columns.astype(str))
+    df.columns = [str(c).strip() for c in df.columns]
+    headers = set(df.columns)
     missing_headers = FINACLE_REQUIRED_HEADERS - headers
     if missing_headers:
         db.close()
@@ -186,14 +187,16 @@ def upload_finacle(
             )
             continue
 
+        # Use mis_date for store validation. Finacle MIS is uploaded for a specific date;
+        # TRAN_DATE can differ due to Excel parsing/timezone. mis_date is authoritative.
         store_row = (
             db.query(BankStoreMaster)
             .filter(BankStoreMaster.bank_store_code == bank_store_code)
             .filter(BankStoreMaster.status == "ACTIVE")
-            .filter(BankStoreMaster.effective_from <= remittance_date)
+            .filter(BankStoreMaster.effective_from <= mis_date)
             .filter(
                 (BankStoreMaster.effective_to.is_(None))
-                | (BankStoreMaster.effective_to >= remittance_date)
+                | (BankStoreMaster.effective_to >= mis_date)
             )
             .first()
         )
