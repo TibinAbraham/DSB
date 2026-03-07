@@ -110,6 +110,18 @@ def _lookup_mapping(db, vendor_id, vendor_store_code, as_of_date):
     )
 
 
+def _lookup_mapping_lenient(db, vendor_id, vendor_store_code):
+    """Lookup store mapping without effective date check (for uploads with historical data)."""
+    return (
+        db.query(VendorStoreMappingMaster)
+        .filter(VendorStoreMappingMaster.vendor_id == vendor_id)
+        .filter(VendorStoreMappingMaster.vendor_store_code == vendor_store_code)
+        .filter(VendorStoreMappingMaster.status == "ACTIVE")
+        .order_by(VendorStoreMappingMaster.effective_from.desc())
+        .first()
+    )
+
+
 @router.post("/finacle", response_model=UploadResponse)
 def upload_finacle(
     misDate: str = Form(...),
@@ -693,7 +705,7 @@ def upload_vendor(
             )
             continue
 
-        mapping_row = _lookup_mapping(db, vendor.vendor_id, vendor_store_code, pickup_date)
+        mapping_row = _lookup_mapping_lenient(db, vendor.vendor_id, vendor_store_code)
         if not mapping_row:
             invalid_rows += 1
             has_unmapped = True
@@ -808,6 +820,12 @@ def validate_vendor_upload(
         raise HTTPException(status_code=400, detail="Vendor file format has no header mapping")
 
     df = pd.read_excel(file.file)
+    df.columns = [str(c).strip() for c in df.columns]
+    pickup_date_col = mapping.get("pickup_date_column")
+    if pickup_date_col and pickup_date_col in df.columns:
+        df[pickup_date_col] = df[pickup_date_col].apply(
+            lambda v: _parse_date(v) if pd.notna(v) else pd.NaT
+        )
     headers = set(df.columns.astype(str))
     required = [
         mapping.get("pickup_date_column"),
@@ -821,7 +839,6 @@ def validate_vendor_upload(
 
     invalid_rows = 0
     unmapped_codes = set()
-    out_of_range_codes = set()
     for _, row in df.iterrows():
         vendor_store_code = str(row.get(mapping.get("vendor_store_code_column"), "")).strip()
         pickup_date = _parse_date(row.get(mapping.get("pickup_date_column")))
@@ -831,29 +848,15 @@ def validate_vendor_upload(
             invalid_rows += 1
             continue
 
-        mapping_row = _lookup_mapping(db, vendor.vendor_id, vendor_store_code, pickup_date)
+        mapping_row = _lookup_mapping_lenient(db, vendor.vendor_id, vendor_store_code)
         if not mapping_row:
-            has_any = (
-                db.query(VendorStoreMappingMaster)
-                .filter(VendorStoreMappingMaster.vendor_id == vendor.vendor_id)
-                .filter(VendorStoreMappingMaster.vendor_store_code == vendor_store_code)
-                .filter(VendorStoreMappingMaster.status == "ACTIVE")
-                .first()
-            )
-            if has_any:
-                out_of_range_codes.add(vendor_store_code)
-            else:
-                unmapped_codes.add(vendor_store_code)
+            unmapped_codes.add(vendor_store_code)
 
     db.close()
     return {
         "total_rows": len(df.index),
         "invalid_rows": invalid_rows,
         "unmapped_codes": sorted(unmapped_codes),
-        "out_of_range_codes": sorted(out_of_range_codes),
-        "status": "OK"
-        if not unmapped_codes and not out_of_range_codes
-        else "OUT_OF_RANGE"
-        if out_of_range_codes
-        else "UNMAPPED",
+        "out_of_range_codes": [],
+        "status": "OK" if not unmapped_codes else "UNMAPPED",
     }

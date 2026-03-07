@@ -457,16 +457,27 @@ def customer_pickups_preview(
 
 
 def _recon_final_rows(db, from_dt, to_dt):
+    # Final results only; date range on mis_date when set, else pickup/remittance for legacy
     results = (
         db.query(ReconciliationResult)
+        .filter(ReconciliationResult.is_final == 1)
         .filter(
             (
-                (ReconciliationResult.pickup_date >= from_dt)
-                & (ReconciliationResult.pickup_date <= to_dt)
+                (ReconciliationResult.mis_date >= from_dt)
+                & (ReconciliationResult.mis_date <= to_dt)
             )
             | (
-                (ReconciliationResult.remittance_date >= from_dt)
-                & (ReconciliationResult.remittance_date <= to_dt)
+                (ReconciliationResult.mis_date.is_(None))
+                & (
+                    (
+                        (ReconciliationResult.pickup_date >= from_dt)
+                        & (ReconciliationResult.pickup_date <= to_dt)
+                    )
+                    | (
+                        (ReconciliationResult.remittance_date >= from_dt)
+                        & (ReconciliationResult.remittance_date <= to_dt)
+                    )
+                )
             )
         )
         .order_by(ReconciliationResult.created_date.desc())

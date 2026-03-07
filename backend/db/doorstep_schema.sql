@@ -369,6 +369,7 @@ CREATE TABLE reconciliation_results (
   remittance_amount   NUMBER(18,2),
   status              VARCHAR2(20) NOT NULL,
   reason              VARCHAR2(255),
+  is_final            NUMBER(1) DEFAULT 0,
   created_date        DATE DEFAULT SYSDATE NOT NULL,
   CONSTRAINT chk_recon_status CHECK (
     status IN ('MATCHED','AMOUNT_MISMATCH','DATE_MISMATCH','MISSING_FINACLE','MISSING_VENDOR')

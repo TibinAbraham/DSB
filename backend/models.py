@@ -392,12 +392,14 @@ class ReconciliationResult(Base):
     finacle_canonical_id = Column(Number)
     vendor_canonical_id = Column(Number)
     bank_store_code = Column(String(30), nullable=False)
+    mis_date = Column(Date)  # Batch/reconciliation run date - used for save/load filtering
     pickup_date = Column(Date)
     remittance_date = Column(Date)
     pickup_amount = Column(Number(18, 2))
     remittance_amount = Column(Number(18, 2))
     status = Column(String(20), nullable=False)
     reason = Column(String(255))
+    is_final = Column(Number(1), default=0)
     created_date = Column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (

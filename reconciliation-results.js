@@ -122,3 +122,11 @@ downloadButton.addEventListener("click", () => {
   const misDate = misDateInput?.value;
   downloadXlsx(latestResults, misDate);
 });
+
+// Pre-fill date from URL (e.g. from Save as Final link) and auto-load
+const urlParams = new URLSearchParams(window.location.search);
+const misDateFromUrl = urlParams.get("misDate");
+if (misDateFromUrl && misDateInput) {
+  misDateInput.value = misDateFromUrl;
+  loadButton.click();
+}

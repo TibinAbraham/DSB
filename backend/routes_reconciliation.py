@@ -130,6 +130,7 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
         existing = (
             db.query(ReconciliationResult)
             .filter(ReconciliationResult.bank_store_code == bank_store_code)
+            .filter(ReconciliationResult.mis_date == mis_date)
             .filter(
                 (ReconciliationResult.pickup_date == date_key)
                 | (ReconciliationResult.remittance_date == date_key)
@@ -140,23 +141,27 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
 
         if existing:
             recon = existing
+            recon.mis_date = mis_date
             recon.pickup_date = date_key
             recon.remittance_date = date_key
             recon.pickup_amount = vendor_amount
             recon.remittance_amount = finacle_amount
             recon.status = status
             recon.reason = reason
+            recon.is_final = 0
         else:
             recon = ReconciliationResult(
                 finacle_canonical_id=None,
                 vendor_canonical_id=None,
                 bank_store_code=bank_store_code,
+                mis_date=mis_date,
                 pickup_date=date_key,
                 remittance_date=date_key,
                 pickup_amount=vendor_amount,
                 remittance_amount=finacle_amount,
                 status=status,
                 reason=reason,
+                is_final=0,
             )
             db.add(recon)
             db.flush()
@@ -233,6 +238,85 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
     return payload
 
 
+@router.post("/save")
+def save_reconciliation_final(
+    payload: dict, user: AuthUser = Depends(require_roles("MAKER", "ADMIN", "CHECKER"))
+):
+    """Save reconciliation as final when all rows are MATCHED."""
+    db = SessionLocal()
+    mis_date_raw = payload.get("misDate")
+    recon_ids = payload.get("recon_ids") or []
+    if not mis_date_raw:
+        db.close()
+        raise HTTPException(status_code=400, detail="misDate is required")
+    try:
+        mis_date = datetime.strptime(mis_date_raw, "%Y-%m-%d").date()
+    except ValueError:
+        db.close()
+        raise HTTPException(status_code=400, detail="misDate must be YYYY-MM-DD")
+
+    if recon_ids:
+        rows = (
+            db.query(ReconciliationResult)
+            .filter(ReconciliationResult.recon_id.in_(recon_ids))
+            .all()
+        )
+    else:
+        results = (
+            db.query(ReconciliationResult)
+            .filter(ReconciliationResult.mis_date == mis_date)
+            .order_by(ReconciliationResult.created_date.desc())
+            .all()
+        )
+        unique_results = {}
+        for r in results:
+            date_key = r.remittance_date or r.pickup_date
+            key = (r.bank_store_code, date_key)
+            if key not in unique_results:
+                unique_results[key] = r
+        rows = list(unique_results.values())
+
+    if not rows:
+        db.close()
+        raise HTTPException(status_code=404, detail="No reconciliation results found for this date")
+
+    not_matched = [r for r in rows if r.status != "MATCHED"]
+    if not_matched:
+        db.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot save: all rows must be MATCHED. Resolve mismatches first.",
+        )
+
+    recon_ids = [r.recon_id for r in rows]
+    # Clear is_final for other runs of this date (use mis_date when set, else pickup/remittance for legacy rows)
+    db.query(ReconciliationResult).filter(
+        (ReconciliationResult.mis_date == mis_date)
+        | (
+            (ReconciliationResult.mis_date.is_(None))
+            & (
+                (ReconciliationResult.pickup_date == mis_date)
+                | (ReconciliationResult.remittance_date == mis_date)
+            )
+        )
+    ).update({"is_final": 0}, synchronize_session="fetch")
+    db.query(ReconciliationResult).filter(ReconciliationResult.recon_id.in_(recon_ids)).update(
+        {"is_final": 1, "mis_date": mis_date}, synchronize_session="fetch"
+    )
+    log_audit(
+        db,
+        entity_type="RECONCILIATION",
+        entity_id="SAVE_FINAL",
+        action="SAVE",
+        old_data=None,
+        new_data=f"mis_date={mis_date_raw},rows={len(rows)}",
+        changed_by=user.employee_id,
+    )
+    db.commit()
+    db.close()
+    return {"status": "SAVED", "message": f"Reconciliation saved as final for {mis_date_raw}"}
+
+
 @router.get("/results")
 def list_results(misDate: str, user: AuthUser = Depends(require_roles("MAKER", "ADMIN", "CHECKER", "AUDITOR"))):
     db = SessionLocal()
@@ -242,11 +326,19 @@ def list_results(misDate: str, user: AuthUser = Depends(require_roles("MAKER", "
         db.close()
         raise HTTPException(status_code=400, detail="misDate must be YYYY-MM-DD")
 
+    # Filter by mis_date; include legacy rows (mis_date NULL) where pickup/remittance matches
     results = (
         db.query(ReconciliationResult)
+        .filter(ReconciliationResult.is_final == 1)
         .filter(
-            (ReconciliationResult.pickup_date == mis_date)
-            | (ReconciliationResult.remittance_date == mis_date)
+            (ReconciliationResult.mis_date == mis_date)
+            | (
+                (ReconciliationResult.mis_date.is_(None))
+                & (
+                    (ReconciliationResult.pickup_date == mis_date)
+                    | (ReconciliationResult.remittance_date == mis_date)
+                )
+            )
         )
         .order_by(ReconciliationResult.created_date.desc())
         .all()

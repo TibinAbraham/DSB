@@ -3,6 +3,7 @@ const reconMessage = document.querySelector("#recon-message");
 const tableWrapper = document.querySelector("#recon-table-wrapper");
 const misDateInput = document.querySelector("#recon-mis-date");
 const downloadButton = document.querySelector("#download-recon");
+const saveButton = document.querySelector("#save-recon");
 const progressContainer = document.querySelector("#recon-progress");
 const progressLabel = document.querySelector("#recon-progress-label");
 const progressFill = document.querySelector("#recon-progress-fill");
@@ -121,6 +122,11 @@ const renderTable = (results) => {
   latestResults = results;
   downloadButton.disabled = false;
   downloadButton.hidden = false;
+  const allMatched = results.every((r) => r.status === "MATCHED");
+  if (saveButton) {
+    saveButton.disabled = !allMatched;
+    saveButton.hidden = !allMatched;
+  }
   const rows = results
     .map(
       (row) => `
@@ -279,4 +285,43 @@ runReconButton.addEventListener("click", async () => {
 downloadButton.addEventListener("click", () => {
   const misDate = misDateInput?.value;
   downloadCsv(latestResults, misDate);
+});
+
+saveButton?.addEventListener("click", async () => {
+  const misDate = misDateInput?.value;
+  if (!misDate) {
+    reconMessage.textContent = "Please select MIS date.";
+    reconMessage.style.color = "#b42318";
+    return;
+  }
+  const reconIds = latestResults.map((r) => r.recon_id).filter((id) => id != null);
+  if (!reconIds.length) {
+    reconMessage.textContent = "No reconciliation results to save.";
+    reconMessage.style.color = "#b42318";
+    return;
+  }
+  reconMessage.textContent = "Saving reconciliation as final...";
+  reconMessage.style.color = "#0f4c81";
+  try {
+    const response = await fetch(`${apiBase}/api/reconciliation/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...window.getAuthHeaders() },
+      body: JSON.stringify({ misDate, recon_ids: reconIds }),
+    });
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const data = await response.json();
+        detail = data?.detail || "";
+      } catch (error) {
+        detail = "";
+      }
+      throw new Error(detail || "Save failed");
+    }
+    reconMessage.innerHTML = `Reconciliation saved as final. <a href="reconciliation-results.html?misDate=${encodeURIComponent(misDate)}" class="secondary-link">View in Daily Reconciliation Results</a>`;
+    reconMessage.style.color = "#0f4c81";
+  } catch (error) {
+    reconMessage.textContent = error.message || "Unable to save reconciliation.";
+    reconMessage.style.color = "#b42318";
+  }
 });
