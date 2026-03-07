@@ -410,6 +410,10 @@ a.charge-tab {
   margin-top: 16px;
 }
 
+.charge-panel.hidden {
+  display: none;
+}
+
 .charge-panel h3 {
   font-size: 16px;
   margin-bottom: 12px;

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -139,15 +140,35 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
             .first()
         )
 
+        # Check if existing has an APPROVED amount correction - if so, keep corrected values
+        has_approved_correction = False
+        if existing:
+            correction_row = (
+                db.query(ReconciliationCorrection, ApprovalRequest)
+                .join(ApprovalRequest, ApprovalRequest.approval_id == ReconciliationCorrection.approval_id)
+                .filter(ReconciliationCorrection.recon_id == existing.recon_id)
+                .filter(ApprovalRequest.status == "APPROVED")
+                .order_by(ReconciliationCorrection.created_date.desc())
+                .first()
+            )
+            if correction_row:
+                try:
+                    proposed = json.loads(correction_row[0].proposed_data or "{}")
+                    if proposed.get("requested_action") == "AMOUNT_EDIT":
+                        has_approved_correction = True
+                except json.JSONDecodeError:
+                    pass
+
         if existing:
             recon = existing
             recon.mis_date = mis_date
             recon.pickup_date = date_key
             recon.remittance_date = date_key
-            recon.pickup_amount = vendor_amount
-            recon.remittance_amount = finacle_amount
-            recon.status = status
-            recon.reason = reason
+            if not has_approved_correction:
+                recon.pickup_amount = vendor_amount
+                recon.remittance_amount = finacle_amount
+                recon.status = status
+                recon.reason = reason
             recon.is_final = 0
         else:
             recon = ReconciliationResult(
@@ -169,7 +190,7 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
             "vendor_names": ", ".join(vendor_names) if vendor_names else None,
             "store_name": store_name,
         }
-        if status != "MATCHED":
+        if recon.status != "MATCHED":
             existing_exception = (
                 db.query(ExceptionRecord)
                 .filter(ExceptionRecord.recon_id == recon.recon_id)
@@ -215,9 +236,29 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
         changed_by=user.employee_id,
     )
     db.commit()
+
+    # Fetch latest correction/approval status per recon_id for display
+    recon_ids = [r.recon_id for r in results]
+    correction_status_by_recon = {}
+    if recon_ids:
+        correction_rows = (
+            db.query(ReconciliationCorrection.recon_id, ApprovalRequest.status, ApprovalRequest.reason)
+            .join(ApprovalRequest, ApprovalRequest.approval_id == ReconciliationCorrection.approval_id)
+            .filter(ReconciliationCorrection.recon_id.in_(recon_ids))
+            .order_by(ReconciliationCorrection.created_date.desc())
+            .all()
+        )
+        for recon_id, approval_status, approval_reason in correction_rows:
+            if recon_id not in correction_status_by_recon:
+                correction_status_by_recon[recon_id] = {
+                    "correction_status": approval_status,
+                    "correction_reason": approval_reason,
+                }
+
     payload = []
     for r in results:
         extras = extra_by_id.get(r.recon_id, {})
+        corr = correction_status_by_recon.get(r.recon_id, {})
         payload.append(
             {
                 "recon_id": r.recon_id,
@@ -232,6 +273,8 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
                 else None,
                 "status": r.status,
                 "reason": r.reason,
+                "correction_status": corr.get("correction_status"),
+                "correction_reason": corr.get("correction_reason"),
             }
         )
     db.close()

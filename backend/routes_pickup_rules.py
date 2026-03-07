@@ -62,10 +62,13 @@ def request_rule(payload: PickupRuleRequest, user: AuthUser = Depends(require_ro
         status="PENDING",
     )
     db.add(approval)
+    db.flush()
     log_audit(db, "PICKUP_RULE", rule.rule_id, "REQUEST", None, payload.model_dump(), user.employee_id)
+    approval_id = approval.approval_id
+    rule_id = rule.rule_id
     db.commit()
     db.close()
-    return {"approval_id": approval.approval_id, "rule_id": rule.rule_id}
+    return {"approval_id": approval_id, "rule_id": rule_id}
 
 
 @router.post("/requests/{approval_id}/approve")

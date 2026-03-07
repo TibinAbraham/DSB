@@ -75,6 +75,7 @@ def list_vendor_charges(
     month_key: str | None = None,
     month_from: str | None = None,
     month_to: str | None = None,
+    vendor_id: int | None = None,
     user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
 ):
     """List vendor charge summaries for maker/admin view."""
@@ -82,6 +83,8 @@ def list_vendor_charges(
     q = db.query(VendorChargeSummary, VendorMaster.vendor_name, VendorMaster.vendor_code).outerjoin(
         VendorMaster, VendorChargeSummary.vendor_id == VendorMaster.vendor_id
     )
+    if vendor_id is not None:
+        q = q.filter(VendorChargeSummary.vendor_id == vendor_id)
     if month_from and month_to:
         q = q.filter(VendorChargeSummary.month_key >= month_from, VendorChargeSummary.month_key <= month_to)
     elif month_key:
@@ -172,11 +175,9 @@ def compute_vendor_charges(payload: dict, user: AuthUser = Depends(require_roles
     last_day = calendar.monthrange(year, month)[1]
     as_of_date = datetime(year, month, last_day).date()
 
-    threshold = _get_config_number(db, ENHANCEMENT_THRESHOLD_CODE, as_of_date)
-    enhancement_charge = _get_config_number(db, ENHANCEMENT_CHARGE_CODE, as_of_date)
-    if threshold is None or enhancement_charge is None:
-        db.close()
-        raise HTTPException(status_code=400, detail="Enhancement charge configs missing")
+    # Enhancement configs disabled for now - use defaults when not configured
+    threshold = _get_config_number(db, ENHANCEMENT_THRESHOLD_CODE, as_of_date) or 50000.0
+    enhancement_charge = _get_config_number(db, ENHANCEMENT_CHARGE_CODE, as_of_date) or 60.0
 
     gst_enabled = _get_config_text(db, GST_ENABLED_CODE, as_of_date)
     gst_rate = _get_config_number(db, GST_RATE_CODE, as_of_date) or 0.0
@@ -225,38 +226,39 @@ def compute_vendor_charges(payload: dict, user: AuthUser = Depends(require_roles
         call_pickups = sum(1 for t in vendor_txns if t.pickup_type == "CALL")
         chargeable_calls = max(0, call_pickups - call_free_limit)
 
-        beat_rate = (
-            db.query(VendorChargeMaster)
-            .filter(VendorChargeMaster.vendor_id == vendor_id)
-            .filter(VendorChargeMaster.pickup_type == "BEAT")
-            .filter(VendorChargeMaster.status == "ACTIVE")
-            .filter(VendorChargeMaster.effective_from <= as_of_date)
-            .filter(
-                (VendorChargeMaster.effective_to.is_(None))
-                | (VendorChargeMaster.effective_to >= as_of_date)
+        def _get_charge_rate(vid, ptype):
+            # Prefer ACTIVE config in effect for as_of_date; fallback to INACTIVE (pending approval)
+            in_effect = (
+                db.query(VendorChargeMaster)
+                .filter(VendorChargeMaster.vendor_id == vid)
+                .filter(VendorChargeMaster.pickup_type == ptype)
+                .filter(VendorChargeMaster.effective_from <= as_of_date)
+                .filter(
+                    (VendorChargeMaster.effective_to.is_(None))
+                    | (VendorChargeMaster.effective_to >= as_of_date)
+                )
             )
-            .order_by(VendorChargeMaster.effective_from.desc())
-            .first()
-        )
-        call_rate = (
-            db.query(VendorChargeMaster)
-            .filter(VendorChargeMaster.vendor_id == vendor_id)
-            .filter(VendorChargeMaster.pickup_type == "CALL")
-            .filter(VendorChargeMaster.status == "ACTIVE")
-            .filter(VendorChargeMaster.effective_from <= as_of_date)
-            .filter(
-                (VendorChargeMaster.effective_to.is_(None))
-                | (VendorChargeMaster.effective_to >= as_of_date)
-            )
-            .order_by(VendorChargeMaster.effective_from.desc())
-            .first()
-        )
+            rate = in_effect.filter(VendorChargeMaster.status == "ACTIVE").order_by(
+                VendorChargeMaster.effective_from.desc()
+            ).first()
+            if rate:
+                return rate
+            return in_effect.order_by(VendorChargeMaster.effective_from.desc()).first()
+
+        beat_rate = _get_charge_rate(vendor_id, "BEAT")
+        call_rate = _get_charge_rate(vendor_id, "CALL")
         if beat_pickups and not beat_rate:
             db.close()
-            raise HTTPException(status_code=400, detail="Beat charge config missing for vendor")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Beat charge config missing for vendor {vendor_id}. Add BEAT config with effective_from on or before month end.",
+            )
         if chargeable_calls and not call_rate:
             db.close()
-            raise HTTPException(status_code=400, detail="Call charge config missing for vendor")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Call charge config missing for vendor {vendor_id}. Add CALL config with effective_from on or before month end.",
+            )
 
         beat_charge = float(beat_rate.base_charge) * beat_pickups if beat_rate else 0.0
         call_charge = float(call_rate.base_charge) * chargeable_calls if call_rate else 0.0
@@ -264,7 +266,7 @@ def compute_vendor_charges(payload: dict, user: AuthUser = Depends(require_roles
 
         total_remittance = sum(float(t.pickup_amount or 0) for t in vendor_txns)
         enhancement_units = math.floor(total_remittance / threshold)
-        enhancement_amount = enhancement_units * enhancement_charge
+        enhancement_amount = 0  # Enhancement disabled; was: enhancement_units * enhancement_charge
 
         total_charge_amount = base_charge_amount + enhancement_amount
         tax_amount = total_charge_amount * (gst_rate / 100) if str(gst_enabled).upper() == "Y" else 0.0
@@ -405,7 +407,7 @@ def compute_customer_charges(payload: dict, user: AuthUser = Depends(require_rol
             customer_totals[customer_id]["base_charge"] += data["remittance"] * (
                 customer_rate_fallback / 100
             )
-        beat_enhancement = math.floor(data["beat_amount"] / threshold) * enhancement_per_unit
+        beat_enhancement = 0  # Enhancement disabled; was: math.floor(data["beat_amount"] / threshold) * enhancement_per_unit
         customer_totals[customer_id]["enhancement"] += beat_enhancement
 
     results = []

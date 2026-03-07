@@ -46,6 +46,17 @@ const formatCurrency = (n) => {
 
 const dateToMonthKey = (val) => (val && val.length >= 7 ? val.slice(0, 7).replace(/-/g, "") : null);
 
+const monthKeyToDateRange = (monthKey) => {
+  if (!monthKey || monthKey.length !== 6) return { from: "", to: "" };
+  const y = parseInt(monthKey.slice(0, 4), 10);
+  const m = parseInt(monthKey.slice(4, 6), 10);
+  const lastDay = new Date(y, m, 0).getDate();
+  return {
+    from: `${y}-${String(m).padStart(2, "0")}-01`,
+    to: `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+  };
+};
+
 const getMonthsInRange = (monthFrom, monthTo) => {
   if (!monthFrom || !monthTo) return monthFrom ? [monthFrom] : [];
   const [from, to] = monthFrom <= monthTo ? [monthFrom, monthTo] : [monthTo, monthFrom];
@@ -68,18 +79,23 @@ const initDate = (el) => {
   el.value = now.toISOString().slice(0, 10);
 };
 
-const loadVendorCharges = async (monthFrom, monthTo) => {
+const chargeViewVendor = document.querySelector("#charge-view-vendor");
+
+const loadVendorCharges = async (monthFrom, monthTo, vendorId = null) => {
   if (!vendorRows) return;
   vendorRows.innerHTML = "";
   vendorChargeMessage.textContent = "";
   try {
     let url = `${apiBase}/api/charges/vendor/summary`;
+    const params = [];
+    if (vendorId) params.push(`vendor_id=${encodeURIComponent(vendorId)}`);
     if (monthFrom && monthTo) {
       const [from, to] = monthFrom <= monthTo ? [monthFrom, monthTo] : [monthTo, monthFrom];
-      url += `?month_from=${encodeURIComponent(from)}&month_to=${encodeURIComponent(to)}`;
+      params.push(`month_from=${encodeURIComponent(from)}`, `month_to=${encodeURIComponent(to)}`);
     } else if (monthFrom) {
-      url += `?month_key=${encodeURIComponent(monthFrom)}`;
+      params.push(`month_key=${encodeURIComponent(monthFrom)}`);
     }
+    if (params.length) url += `?${params.join("&")}`;
     const response = await fetch(url, { headers: window.getAuthHeaders() });
     if (!response.ok) throw new Error("Failed to load vendor charges");
     const data = await response.json();
@@ -89,10 +105,13 @@ const loadVendorCharges = async (monthFrom, monthTo) => {
     }
     vendorRows.innerHTML = data
       .map(
-        (r) => `
+        (r) => {
+          const { from, to } = monthKeyToDateRange(r.month_key);
+          return `
       <tr>
         <td>${r.vendor_name || r.vendor_code || r.vendor_id}</td>
-        <td>${r.month_key || ""}</td>
+        <td>${from}</td>
+        <td>${to}</td>
         <td>${r.beat_pickups ?? ""}</td>
         <td>${r.call_pickups ?? ""}</td>
         <td>${formatCurrency(r.base_charge_amount)}</td>
@@ -101,7 +120,8 @@ const loadVendorCharges = async (monthFrom, monthTo) => {
         <td>${formatCurrency(r.total_with_tax)}</td>
         <td>${r.computed_by || ""}</td>
       </tr>
-    `,
+    `;
+        },
       )
       .join("");
   } catch (error) {
@@ -168,19 +188,24 @@ const computeCharges = async (type) => {
   setMessage(msgEl, `Computing ${type} charges for ${months.length} month(s)...`);
   try {
     let totalComputed = 0;
+    const vendorIds = type === "vendor" && chargeViewVendor?.value ? [Number(chargeViewVendor.value)] : null;
     for (const monthKey of months) {
+      const payload = { month_key: monthKey };
+      if (vendorIds) payload.vendor_ids = vendorIds;
       const response = await fetch(`${apiBase}/api/charges/${type}/compute`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...window.getAuthHeaders() },
-        body: JSON.stringify({ month_key: monthKey }),
+        body: JSON.stringify(payload),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail || response.statusText || "Compute failed");
       totalComputed += data.computed ?? 0;
     }
     setMessage(msgEl, `${type} charges computed: ${totalComputed} records across ${months.length} month(s).`);
-    if (type === "vendor") loadVendorCharges(monthFrom, monthTo);
-    else loadCustomerCharges(monthFrom, monthTo);
+    if (type === "vendor") {
+      const vendorId = chargeViewVendor?.value || null;
+      loadVendorCharges(monthFrom, monthTo, vendorId);
+    } else loadCustomerCharges(monthFrom, monthTo);
   } catch (error) {
     setMessage(msgEl, error.message || "Compute failed", true);
   }
@@ -198,7 +223,8 @@ const loadVendors = async (selectIds) => {
     selects.forEach((sel) => {
       const isFilter = sel.id === "slab-filter-vendor";
       const isViewConfig = sel.id === "vendor-charge-view-vendor";
-      sel.innerHTML = isFilter
+      const isChargeView = sel.id === "charge-view-vendor";
+      sel.innerHTML = isFilter || isChargeView
         ? '<option value="">All vendors</option>'
         : isViewConfig
           ? '<option value="">Select vendor to view configuration</option>'
@@ -300,30 +326,41 @@ const bindForm = (formId, messageId, handler) => {
   });
 };
 
+const switchTab = (tab) => {
+  document.querySelectorAll(".charge-tab").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".charge-panel").forEach((p) => {
+    const isVisible = p.id === `${tab}-panel`;
+    p.classList.toggle("hidden", !isVisible);
+  });
+  document.querySelector(`.charge-tab[data-tab='${tab}']`)?.classList.add("active");
+  window.location.hash = tab;
+  // Load data only for the selected tab
+  if (tab === "vendor") {
+    const from = dateToMonthKey(chargeDateFromVendor?.value?.trim());
+    const to = dateToMonthKey(chargeDateToVendor?.value?.trim()) || from;
+    const vendorId = chargeViewVendor?.value || null;
+    loadVendorCharges(from, to, vendorId);
+  } else {
+    const from = dateToMonthKey(chargeDateFromCustomer?.value?.trim());
+    const to = dateToMonthKey(chargeDateToCustomer?.value?.trim()) || from;
+    loadCustomerCharges(from, to);
+    loadCustomerSlabs(document.querySelector("#slab-filter-vendor")?.value || null);
+  }
+};
+
 document.querySelectorAll(".charge-tab").forEach((btn) => {
   btn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const tab = btn.dataset.tab;
-    document.querySelectorAll(".charge-tab").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".charge-panel").forEach((p) => {
-      p.classList.toggle("hidden", p.id !== `${tab}-panel`);
-    });
-    btn.classList.add("active");
-    window.location.hash = tab;
+    switchTab(btn.dataset.tab);
     return false;
   });
 });
 
-// Restore tab from URL hash on load
+// On load: show only the selected tab and load its data
 const hash = window.location.hash.replace("#", "");
-if (hash === "customer") {
-  document.querySelectorAll(".charge-tab").forEach((b) => b.classList.remove("active"));
-  document.querySelectorAll(".charge-panel").forEach((p) => {
-    p.classList.toggle("hidden", p.id !== "customer-panel");
-  });
-  document.querySelector(".charge-tab[data-tab='customer']")?.classList.add("active");
-}
+const initialTab = hash === "customer" ? "customer" : "vendor";
+switchTab(initialTab);
 
 if (computeVendorBtn) computeVendorBtn.addEventListener("click", () => computeCharges("vendor"));
 if (computeCustomerBtn) computeCustomerBtn.addEventListener("click", () => computeCharges("customer"));
@@ -331,7 +368,8 @@ if (refreshVendorBtn)
   refreshVendorBtn.addEventListener("click", () => {
     const from = dateToMonthKey(chargeDateFromVendor?.value?.trim());
     const to = dateToMonthKey(chargeDateToVendor?.value?.trim()) || from;
-    loadVendorCharges(from, to);
+    const vendorId = chargeViewVendor?.value || null;
+    loadVendorCharges(from, to, vendorId);
   });
 if (refreshCustomerBtn)
   refreshCustomerBtn.addEventListener("click", () => {
@@ -404,17 +442,18 @@ initDate(chargeDateFromVendor);
 initDate(chargeDateToVendor);
 initDate(chargeDateFromCustomer);
 initDate(chargeDateToCustomer);
-const vendorFrom = dateToMonthKey(chargeDateFromVendor?.value?.trim());
-const vendorTo = dateToMonthKey(chargeDateToVendor?.value?.trim()) || vendorFrom;
-const customerFrom = dateToMonthKey(chargeDateFromCustomer?.value?.trim());
-const customerTo = dateToMonthKey(chargeDateToCustomer?.value?.trim()) || customerFrom;
-loadVendorCharges(vendorFrom, vendorTo);
-loadCustomerCharges(customerFrom, customerTo);
-loadVendors(["#vendor-charge-vendor", "#slab-vendor", "#slab-filter-vendor", "#vendor-charge-view-vendor"]);
+loadVendors(["#charge-view-vendor", "#vendor-charge-vendor", "#slab-vendor", "#slab-filter-vendor", "#vendor-charge-view-vendor"]);
 
 document.querySelector("#vendor-charge-view-vendor")?.addEventListener("change", (e) => {
   const vendorId = e.target.value;
   loadVendorChargeConfig(vendorId || null);
+});
+
+chargeViewVendor?.addEventListener("change", () => {
+  const from = dateToMonthKey(chargeDateFromVendor?.value?.trim());
+  const to = dateToMonthKey(chargeDateToVendor?.value?.trim()) || from;
+  const vendorId = chargeViewVendor?.value || null;
+  loadVendorCharges(from, to, vendorId);
 });
 loadCustomerSlabs();
 

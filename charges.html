@@ -38,6 +38,12 @@
             <h3>Compute & View</h3>
             <div class="charge-controls">
               <label class="field">
+                <span class="label">Vendor</span>
+                <select id="charge-view-vendor">
+                  <option value="">All vendors</option>
+                </select>
+              </label>
+              <label class="field">
                 <span class="label">From Date</span>
                 <input type="date" id="charge-date-from-vendor" />
               </label>
@@ -54,7 +60,8 @@
                 <thead>
                   <tr>
                     <th>Vendor</th>
-                    <th>Month</th>
+                    <th>From Date</th>
+                    <th>To Date</th>
                     <th>Beat</th>
                     <th>Call</th>
                     <th>Base (₹)</th>

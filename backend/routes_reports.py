@@ -31,50 +31,107 @@ def _csv_response(filename: str, rows: list[list[str]]):
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerows(rows)
+    content = buffer.getvalue().encode("utf-8-sig")  # BOM for Excel compatibility
     return Response(
-        content=buffer.getvalue(),
-        media_type="text/csv",
+        content=content,
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
+def _vendor_charges_rows(db, from_date: str | None, to_date: str | None):
+    import calendar as cal
+    q = db.query(VendorChargeSummary, VendorMaster.vendor_name).outerjoin(
+        VendorMaster, VendorChargeSummary.vendor_id == VendorMaster.vendor_id
+    )
+    if from_date and to_date:
+        try:
+            from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+            to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+            month_from = from_dt.strftime("%Y%m")
+            month_to = to_dt.strftime("%Y%m")
+            if month_from > month_to:
+                month_from, month_to = month_to, month_from
+            q = q.filter(VendorChargeSummary.month_key >= month_from, VendorChargeSummary.month_key <= month_to)
+        except ValueError:
+            pass
+    items = q.order_by(VendorChargeSummary.month_key.desc(), VendorChargeSummary.vendor_id).all()
+    rows = []
+    for item, vendor_name in items:
+        month_key = item.month_key or ""
+        y, m = (int(month_key[:4]), int(month_key[4:6])) if len(month_key) >= 6 else (None, None)
+        from_str = f"{y}-{m:02d}-01" if y and m else ""
+        to_str = f"{y}-{m:02d}-{cal.monthrange(y, m)[1]:02d}" if y and m else ""
+        rows.append({
+            "Vendor": vendor_name or "",
+            "Vendor ID": str(item.vendor_id),
+            "Month": month_key,
+            "From Date": from_str,
+            "To Date": to_str,
+            "Beat": str(item.beat_pickups),
+            "Call": str(item.call_pickups),
+            "Base (₹)": str(item.base_charge_amount),
+            "Enhancement (₹)": str(item.enhancement_charge),
+            "Tax (₹)": str(item.tax_amount),
+            "Total (₹)": str(item.total_with_tax),
+        })
+    return rows
+
+
 @router.get("/vendor-charges")
-def vendor_charges(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR"))):
+def vendor_charges(
+    from_date: str | None = None,
+    to_date: str | None = None,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
     db = SessionLocal()
+    data_rows = _vendor_charges_rows(db, from_date, to_date)
     rows = [
-        [
-            "VENDOR_ID",
-            "MONTH_KEY",
-            "BEAT_PICKUPS",
-            "CALL_PICKUPS",
-            "BASE_CHARGE",
-            "ENHANCEMENT_CHARGE",
-            "TAX_AMOUNT",
-            "TOTAL_WITH_TAX",
-        ]
+        ["VENDOR_ID", "VENDOR_NAME", "MONTH_KEY", "FROM_DATE", "TO_DATE", "BEAT_PICKUPS", "CALL_PICKUPS", "BASE_CHARGE", "ENHANCEMENT_CHARGE", "TAX_AMOUNT", "TOTAL_WITH_TAX"]
     ]
-    for item in db.query(VendorChargeSummary).all():
-        rows.append(
-            [
-                str(item.vendor_id),
-                item.month_key,
-                str(item.beat_pickups),
-                str(item.call_pickups),
-                str(item.base_charge_amount),
-                str(item.enhancement_charge),
-                str(item.tax_amount),
-                str(item.total_with_tax),
-            ]
-        )
-    log_audit(db, "REPORT", "VENDOR_CHARGES", "DOWNLOAD", None, None, user.employee_id)
+    for r in data_rows:
+        rows.append([
+            r["Vendor ID"], r["Vendor"], r["Month"], r["From Date"], r["To Date"],
+            r["Beat"], r["Call"], r["Base (₹)"], r["Enhancement (₹)"], r["Tax (₹)"], r["Total (₹)"],
+        ])
+    log_audit(db, "REPORT", "VENDOR_CHARGES", "DOWNLOAD", None, f"from={from_date},to={to_date}", user.employee_id)
     db.commit()
     db.close()
     return _csv_response("vendor-charges.csv", rows)
 
 
-@router.get("/customer-charges")
-def customer_charges(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR"))):
+@router.get("/vendor-charges/preview")
+def vendor_charges_preview(
+    from_date: str | None = None,
+    to_date: str | None = None,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
     db = SessionLocal()
+    rows = _vendor_charges_rows(db, from_date, to_date)
+    db.close()
+    return rows[:100]
+
+
+@router.get("/customer-charges")
+def customer_charges(
+    from_date: str | None = None,
+    to_date: str | None = None,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    q = db.query(CustomerChargeSummary)
+    if from_date and to_date:
+        try:
+            from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+            to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+            month_from = from_dt.strftime("%Y%m")
+            month_to = to_dt.strftime("%Y%m")
+            if month_from > month_to:
+                month_from, month_to = month_to, month_from
+            q = q.filter(CustomerChargeSummary.month_key >= month_from, CustomerChargeSummary.month_key <= month_to)
+        except ValueError:
+            pass
+    items = q.order_by(CustomerChargeSummary.month_key.desc(), CustomerChargeSummary.customer_id).all()
     rows = [
         [
             "CUSTOMER_ID",
@@ -88,7 +145,7 @@ def customer_charges(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", 
             "TOTAL_WITH_TAX",
         ]
     ]
-    for item in db.query(CustomerChargeSummary).all():
+    for item in items:
         rows.append(
             [
                 item.customer_id,
@@ -102,10 +159,48 @@ def customer_charges(user: AuthUser = Depends(require_roles("MAKER", "CHECKER", 
                 str(item.total_with_tax),
             ]
         )
-    log_audit(db, "REPORT", "CUSTOMER_CHARGES", "DOWNLOAD", None, None, user.employee_id)
+    log_audit(db, "REPORT", "CUSTOMER_CHARGES", "DOWNLOAD", None, f"from={from_date},to={to_date}", user.employee_id)
     db.commit()
     db.close()
     return _csv_response("customer-charges.csv", rows)
+
+
+@router.get("/customer-charges/preview")
+def customer_charges_preview(
+    from_date: str | None = None,
+    to_date: str | None = None,
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    db = SessionLocal()
+    q = db.query(CustomerChargeSummary)
+    if from_date and to_date:
+        try:
+            from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+            to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+            month_from = from_dt.strftime("%Y%m")
+            month_to = to_dt.strftime("%Y%m")
+            if month_from > month_to:
+                month_from, month_to = month_to, month_from
+            q = q.filter(CustomerChargeSummary.month_key >= month_from, CustomerChargeSummary.month_key <= month_to)
+        except ValueError:
+            pass
+    items = q.order_by(CustomerChargeSummary.month_key.desc(), CustomerChargeSummary.customer_id).all()
+    rows = [
+        {
+            "Customer ID": item.customer_id,
+            "Month": item.month_key,
+            "Total Remittance (₹)": str(item.total_remittance),
+            "Base (₹)": str(item.base_charge_amount),
+            "Enhancement (₹)": str(item.enhancement_charge or 0),
+            "Waiver (₹)": str(item.waiver_amount),
+            "Net (₹)": str(item.net_charge_amount),
+            "Tax (₹)": str(item.tax_amount),
+            "Total (₹)": str(item.total_with_tax),
+        }
+        for item in items
+    ]
+    db.close()
+    return rows[:100]
 
 
 @router.get("/store-summary")

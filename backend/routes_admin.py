@@ -8,6 +8,7 @@ from models import (
     BankStoreMaster,
     CanonicalTransaction,
     ChargeConfigurationMaster,
+    CustomerChargeSummary,
     ExceptionRecord,
     FinacleInvalidRecord,
     FinacleRawStaging,
@@ -17,6 +18,7 @@ from models import (
     ReconciliationResult,
     RemittanceEntry,
     VendorChargeMaster,
+    VendorChargeSummary,
     VendorFileFormatConfig,
     VendorInvalidRecord,
     VendorMaster,
@@ -41,14 +43,14 @@ def cleanup_data(
     if payload.confirm_text != "CONFIRM":
         raise HTTPException(status_code=400, detail='Type "CONFIRM" to proceed')
 
-    allowed = {"UPLOADS", "TRANSACTIONS", "RECONCILIATION", "APPROVALS", "VENDORS_STORES", "MASTERS", "ALL"}
+    allowed = {"UPLOADS", "TRANSACTIONS", "RECONCILIATION", "APPROVALS", "VENDORS_STORES", "MASTERS", "CHARGES", "ALL"}
     targets = {target.strip().upper() for target in payload.targets or []}
     if not targets:
         raise HTTPException(status_code=400, detail="Select at least one target")
     if not targets.issubset(allowed):
         raise HTTPException(status_code=400, detail="Invalid cleanup target")
     if "ALL" in targets:
-        targets = {"UPLOADS", "TRANSACTIONS", "RECONCILIATION", "APPROVALS", "VENDORS_STORES", "MASTERS"}
+        targets = {"UPLOADS", "TRANSACTIONS", "RECONCILIATION", "APPROVALS", "VENDORS_STORES", "MASTERS", "CHARGES"}
 
     db = SessionLocal()
     deleted = {}
@@ -88,6 +90,10 @@ def cleanup_data(
         delete_model(WaiverMaster)
         delete_model(PickupRulesMaster)
         delete_model(ChargeConfigurationMaster)
+
+    if "CHARGES" in targets:
+        delete_model(CustomerChargeSummary)
+        delete_model(VendorChargeSummary)
 
     log_audit(
         db,

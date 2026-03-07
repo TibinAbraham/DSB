@@ -80,7 +80,10 @@ const downloadCsv = (rows, misDate) => {
     "Finacle Amount",
     "Status",
     "Reason",
+    "Edit Status",
   ];
+  const editStatusDisplay = (s) =>
+    s === "PENDING" ? "Pending" : s === "APPROVED" ? "Approved" : s === "REJECTED" ? "Rejected" : "";
   const lines = [
     headers.join(","),
     ...rows.map((row) =>
@@ -94,6 +97,7 @@ const downloadCsv = (rows, misDate) => {
         row.remittance_amount,
         row.status,
         row.reason,
+        editStatusDisplay(row.correction_status) || "",
       ]
         .map(sanitizeCsvValue)
         .join(","),
@@ -129,7 +133,20 @@ const renderTable = (results) => {
   }
   const rows = results
     .map(
-      (row) => `
+      (row) => {
+        const showEdit =
+          row.status === "AMOUNT_MISMATCH" &&
+          row.correction_status !== "PENDING" &&
+          row.correction_status !== "APPROVED";
+        const editStatusDisplay =
+          row.correction_status === "PENDING"
+            ? "Pending"
+            : row.correction_status === "APPROVED"
+              ? "Approved"
+              : row.correction_status === "REJECTED"
+                ? "Rejected"
+                : "";
+        return `
       <tr>
         <td>${row.bank_store_code || ""}</td>
         <td>${row.store_name || ""}</td>
@@ -140,15 +157,13 @@ const renderTable = (results) => {
         <td>${row.remittance_amount ?? ""}</td>
         <td><span class="status ${row.status === "MATCHED" ? "match" : "mismatch"}">${row.status}</span></td>
         <td>${row.reason || ""}</td>
+        <td>${editStatusDisplay || ""}</td>
         <td>
-          ${
-            row.status === "AMOUNT_MISMATCH"
-              ? `<button class="secondary-btn" data-action="edit-amount" data-recon-id="${row.recon_id}">Edit</button>`
-              : ""
-          }
+          ${showEdit ? `<button class="secondary-btn" data-action="edit-amount" data-recon-id="${row.recon_id}">Edit</button>` : ""}
         </td>
       </tr>
-    `,
+    `;
+      },
     )
     .join("");
 
@@ -165,6 +180,7 @@ const renderTable = (results) => {
           <th>Finacle Amount</th>
           <th>Status</th>
           <th>Reason</th>
+          <th>Edit Status</th>
           <th>Action</th>
         </tr>
       </thead>
@@ -224,7 +240,7 @@ const renderTable = (results) => {
           }
           throw new Error(detail || "Unable to submit correction.");
         }
-        reconMessage.textContent = "Correction submitted for approval.";
+        reconMessage.textContent = "Correction submitted for approval. Run Reconciliation again to see approval status.";
         reconMessage.style.color = "#0f4c81";
       } catch (error) {
         reconMessage.textContent = error.message || "Unable to submit correction.";
