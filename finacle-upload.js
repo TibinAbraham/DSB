@@ -181,6 +181,51 @@ const handleFilePreview = async (file) => {
   }
 };
 
+const finacleValidateBtn = document.querySelector("#finacle-validate-btn");
+if (finacleValidateBtn) {
+  finacleValidateBtn.addEventListener("click", async () => {
+    const formData = new FormData(finacleForm);
+    const misDate = formData.get("misDate");
+    const file = finacleForm.querySelector('input[type="file"]').files[0];
+    if (!misDate || !file) {
+      finacleMessage.textContent = "Please select date and file first.";
+      finacleMessage.style.color = "#b42318";
+      return;
+    }
+    finacleMessage.textContent = "Validating stores...";
+    finacleMessage.style.color = "#0f4c81";
+    try {
+      const payload = new FormData();
+      payload.append("misDate", misDate);
+      payload.append("file", file);
+      const response = await fetch(`${apiBase}/api/uploads/finacle/validate`, {
+        method: "POST",
+        body: payload,
+        headers: window.getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        finacleMessage.textContent = err?.detail || "Validation failed.";
+        finacleMessage.style.color = "#b42318";
+        return;
+      }
+      const result = await response.json();
+      if (result.missing_store_codes?.length) {
+        finacleMessage.textContent =
+          `Found ${result.missing_store_codes.length} missing store(s): ${result.missing_store_codes.join(", ")}. ` +
+          "Add these in Store Onboarding before uploading.";
+        finacleMessage.style.color = "#b42318";
+      } else {
+        finacleMessage.textContent = `All ${result.total_rows} store codes are onboarded. Ready to upload.`;
+        finacleMessage.style.color = "#0f4c81";
+      }
+    } catch (e) {
+      finacleMessage.textContent = "Validation failed. Please retry.";
+      finacleMessage.style.color = "#b42318";
+    }
+  });
+}
+
 finacleForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -229,9 +274,17 @@ finacleForm.addEventListener("submit", async (event) => {
 
     const result = await response.json();
     if (result.status === "FAILED" && result.invalid_rows > 0) {
-      finacleMessage.textContent =
-        `Upload failed: ${result.invalid_rows} row(s) invalid. ` +
-        "Stores must be onboarded in Store Onboarding first. Add missing stores and retry.";
+      const ok = result.total_rows - result.invalid_rows;
+      let msg =
+        ok > 0
+          ? `Partially uploaded: ${ok} row(s) succeeded, ${result.invalid_rows} row(s) invalid. `
+          : `Upload failed: ${result.invalid_rows} row(s) invalid. `;
+      msg += "Stores must be onboarded in Store Onboarding first.";
+      if (result.missing_store_codes?.length) {
+        msg += ` Missing store codes: ${result.missing_store_codes.join(", ")}.`;
+      }
+      msg += " Add these stores in Store Onboarding and retry.";
+      finacleMessage.textContent = msg;
       finacleMessage.style.color = "#b42318";
     } else {
       finacleMessage.textContent = `Finacle MIS uploaded: ${file.name} (${misDate}).`;

@@ -79,6 +79,17 @@ def _parse_number(value):
         return None
 
 
+def _normalize_store_code(value):
+    """Normalize STORE_CODE from Excel - handles numbers (123.0 -> 123) and strings."""
+    if pd.isna(value):
+        return ""
+    if isinstance(value, (int, float)):
+        if value == int(value):
+            return str(int(value))
+        return str(value)
+    return str(value).strip()
+
+
 def _load_vendor_format(db, vendor_id):
     return (
         db.query(VendorFileFormatConfig)
@@ -122,6 +133,67 @@ def _lookup_mapping_lenient(db, vendor_id, vendor_store_code):
     )
 
 
+@router.post("/finacle/validate")
+def validate_finacle_upload(
+    misDate: str = Form(...),
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
+):
+    """Validate Finacle file before upload - returns missing store codes."""
+    db = SessionLocal()
+    mis_date = pd.to_datetime(misDate).date()
+    df = pd.read_excel(file.file)
+    df.columns = [str(c).strip() for c in df.columns]
+    headers = set(df.columns)
+    missing_headers = FINACLE_REQUIRED_HEADERS - headers
+    if missing_headers:
+        db.close()
+        raise HTTPException(
+            status_code=400, detail=f"Missing required headers: {', '.join(sorted(missing_headers))}"
+        )
+    store_rows = (
+        db.query(BankStoreMaster.bank_store_code)
+        .filter(BankStoreMaster.status == "ACTIVE")
+        .filter(BankStoreMaster.effective_from <= mis_date)
+        .filter(
+            (BankStoreMaster.effective_to.is_(None))
+            | (BankStoreMaster.effective_to >= mis_date)
+        )
+        .all()
+    )
+    valid_stores = {str(row[0]).strip() for row in store_rows if row and row[0]}
+    valid_stores_normalized = {}
+    for code in valid_stores:
+        if code:
+            valid_stores_normalized[code] = code
+            valid_stores_normalized[code.upper()] = code
+            valid_stores_normalized[code.lower()] = code
+            try:
+                n = int(float(code))
+                valid_stores_normalized[str(n)] = code
+            except (ValueError, TypeError):
+                pass
+    missing_store_codes = set()
+    for _, row in df.iterrows():
+        raw = _normalize_store_code(row.get("STORE_CODE", ""))
+        if not raw:
+            continue
+        resolved = (
+            valid_stores_normalized.get(raw)
+            or valid_stores_normalized.get(raw.upper())
+            or valid_stores_normalized.get(raw.lower())
+            or (raw if raw in valid_stores else None)
+        )
+        if not resolved:
+            missing_store_codes.add(raw)
+    db.close()
+    return {
+        "total_rows": len(df.index),
+        "missing_store_codes": sorted(missing_store_codes),
+        "status": "OK" if not missing_store_codes else "MISSING_STORES",
+    }
+
+
 @router.post("/finacle", response_model=UploadResponse)
 def upload_finacle(
     misDate: str = Form(...),
@@ -156,8 +228,35 @@ def upload_finacle(
     db.add(batch)
     db.flush()
 
+    # Pre-load valid store codes for mis_date (ACTIVE, effective on mis_date)
+    store_rows = (
+        db.query(BankStoreMaster.bank_store_code)
+        .filter(BankStoreMaster.status == "ACTIVE")
+        .filter(BankStoreMaster.effective_from <= mis_date)
+        .filter(
+            (BankStoreMaster.effective_to.is_(None))
+            | (BankStoreMaster.effective_to >= mis_date)
+        )
+        .all()
+    )
+    valid_stores = {str(row[0]).strip() for row in store_rows if row and row[0]}
+    # Also add normalized variants for lenient matching (Excel "123.0"->"123", case)
+    valid_stores_normalized = {}
+    for code in valid_stores:
+        if code:
+            valid_stores_normalized[code] = code
+            valid_stores_normalized[code.upper()] = code
+            valid_stores_normalized[code.lower()] = code
+            # Store int form if it looks like a number (e.g. "001" -> "1" matches)
+            try:
+                n = int(float(code))
+                valid_stores_normalized[str(n)] = code
+            except (ValueError, TypeError):
+                pass
+
     invalid_rows = 0
     has_unmapped_stores = False
+    missing_store_codes = set()
     for index, row in df.iterrows():
         row_payload = json.dumps(row.to_dict(), default=str)
         db.add(
@@ -168,14 +267,14 @@ def upload_finacle(
             )
         )
 
-        bank_store_code = str(row.get("STORE_CODE", "")).strip()
+        bank_store_code_raw = _normalize_store_code(row.get("STORE_CODE", ""))
         remittance_amount = _parse_number(row.get("COLLN_AMT"))
         remittance_date = _parse_date(row.get("TRAN_DATE"))
         account_no = str(row.get("FORACID", "")).strip() or None
         customer_id = str(row.get("CUST_ID", "")).strip() or None
         customer_name = str(row.get("ACCT_NAME", "")).strip() or None
 
-        if not bank_store_code or remittance_amount is None or remittance_date is None:
+        if not bank_store_code_raw or remittance_amount is None or remittance_date is None:
             invalid_rows += 1
             db.add(
                 FinacleInvalidRecord(
@@ -187,20 +286,15 @@ def upload_finacle(
             )
             continue
 
-        # Use mis_date for store validation. Finacle MIS is uploaded for a specific date;
-        # TRAN_DATE can differ due to Excel parsing/timezone. mis_date is authoritative.
-        store_row = (
-            db.query(BankStoreMaster)
-            .filter(BankStoreMaster.bank_store_code == bank_store_code)
-            .filter(BankStoreMaster.status == "ACTIVE")
-            .filter(BankStoreMaster.effective_from <= mis_date)
-            .filter(
-                (BankStoreMaster.effective_to.is_(None))
-                | (BankStoreMaster.effective_to >= mis_date)
-            )
-            .first()
+        # Resolve to canonical store code (handles Excel "123.0"->"123", case, etc.)
+        bank_store_code = (
+            valid_stores_normalized.get(bank_store_code_raw)
+            or valid_stores_normalized.get(bank_store_code_raw.upper())
+            or valid_stores_normalized.get(bank_store_code_raw.lower())
+            or (bank_store_code_raw if bank_store_code_raw in valid_stores else None)
         )
-        if not store_row:
+        if not bank_store_code:
+            missing_store_codes.add(bank_store_code_raw)
             invalid_rows += 1
             has_unmapped_stores = True
             db.add(
@@ -263,6 +357,7 @@ def upload_finacle(
         total_rows=len(df.index),
         invalid_rows=invalid_rows,
         status=batch_status,
+        missing_store_codes=sorted(missing_store_codes) if missing_store_codes else None,
     )
 
 

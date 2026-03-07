@@ -18,6 +18,7 @@ class UploadResponse(BaseModel):
     total_rows: int
     invalid_rows: int
     status: str
+    missing_store_codes: Optional[list[str]] = None
 
 
 class VendorFileFormatRequest(BaseModel):
