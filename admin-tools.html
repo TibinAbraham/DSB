@@ -25,9 +25,9 @@
           Dangerous actions. Clear data only when needed for testing. This cannot be undone.
         </p>
 
-        <form id="admin-reset-all-form" class="card-form" novalidate style="margin-bottom: 28px; padding: 20px; border: 1px solid #b42318; border-radius: 8px; background: #fef2f2;">
-          <h3 style="color: #b42318; margin-top: 0;">Reset All</h3>
-          <p class="subtitle" style="font-size: 13px;">
+        <form id="admin-reset-all-form" class="card-form admin-reset-card" novalidate>
+          <h3 class="admin-reset-title">Reset All</h3>
+          <p class="subtitle subtitle-small">
             Clears all application data: uploads, transactions, reconciliation, approvals, vendors, stores, masters, charges, audit logs, month locks. User accounts are preserved. Cannot be undone.
           </p>
           <label class="field">
@@ -38,7 +38,7 @@
             <span class="label">Type RESET ALL to proceed</span>
             <input type="text" name="confirm" placeholder="RESET ALL" required />
           </label>
-          <button type="submit" class="primary-btn" style="background: #b42318;">Reset All</button>
+          <button type="submit" class="primary-btn admin-reset-btn">Reset All</button>
           <p class="form-message" id="admin-reset-message"></p>
         </form>
 
@@ -72,13 +72,13 @@
           <pre class="code-block" id="admin-cleanup-result"></pre>
         </form>
 
-        <hr style="margin: 28px 0; border: none; border-top: 1px solid #e5e7eb;" />
+        <hr class="section-separator" />
 
         <h2>User Management</h2>
         <p class="subtitle">
           Grant application access to Bank AD users. Users log in with their AD credentials; roles are assigned here.
         </p>
-        <form id="user-add-form" class="card-form" style="max-width: 480px;">
+        <form id="user-add-form" class="card-form card-form-narrow">
           <input type="text" name="employeeId" placeholder="Employee ID (AD username)" required />
           <input type="text" name="fullName" placeholder="Full Name" required />
           <select name="roleCode" required>
@@ -91,7 +91,7 @@
           <button class="primary-btn" type="submit">Grant Access</button>
           <p class="form-message" id="user-add-message"></p>
         </form>
-        <div class="table-wrapper" style="margin-top: 20px;">
+        <div class="table-wrapper mt20">
           <table>
             <thead>
               <tr>
@@ -108,7 +108,7 @@
         </div>
         <p class="form-message" id="user-list-message"></p>
 
-        <div class="card-grid" style="margin-top: 20px;">
+        <div class="card-grid mt20">
           <a class="nav-card" href="masters.html">Charge Configuration (Masters)</a>
           <a class="nav-card" href="charges.html">Charge Computation</a>
         </div>
