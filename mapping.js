@@ -234,7 +234,9 @@ const loadMappingsList = async () => {
         displayStatus = "INACTIVE (Pending Approval)";
       }
       const deleteDisabled = statusValue === "INACTIVE" ? "disabled" : "";
+      const requestId = row.approval_id ?? row.mapping_id ?? "";
       tr.innerHTML = `
+        <td>${requestId}</td>
         <td>${getVendorLabel(row.vendor_id)}</td>
         <td>${row.bank_store_code ?? ""}</td>
         <td>${row.vendor_store_code ?? ""}</td>

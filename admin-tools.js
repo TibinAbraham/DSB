@@ -1,73 +1,119 @@
 const cleanupForm = document.querySelector("#admin-cleanup-form");
 const cleanupMessage = document.querySelector("#admin-cleanup-message");
 const cleanupResult = document.querySelector("#admin-cleanup-result");
+const resetAllForm = document.querySelector("#admin-reset-all-form");
+const resetMessage = document.querySelector("#admin-reset-message");
 const userAddForm = document.querySelector("#user-add-form");
 const userAddMessage = document.querySelector("#user-add-message");
 const userListRows = document.querySelector("#user-list-rows");
 const userListMessage = document.querySelector("#user-list-message");
 const apiBase = window.API_BASE || "";
 
-cleanupForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  cleanupMessage.textContent = "";
-  cleanupResult.textContent = "";
-
-  const formData = new FormData(cleanupForm);
-  const targets = formData.getAll("targets");
-  const reason = formData.get("reason")?.trim();
-  const confirmText = formData.get("confirm")?.trim();
-
-  if (!targets.length) {
-    cleanupMessage.textContent = "Select at least one data area.";
-    cleanupMessage.style.color = "#b42318";
-    return;
-  }
-  if (!reason) {
-    cleanupMessage.textContent = "Reason is required.";
-    cleanupMessage.style.color = "#b42318";
-    return;
-  }
-  if (confirmText !== "CONFIRM") {
-    cleanupMessage.textContent = 'Type "CONFIRM" to proceed.';
-    cleanupMessage.style.color = "#b42318";
-    return;
-  }
-
-  cleanupMessage.textContent = "Clearing data...";
-  cleanupMessage.style.color = "#0f4c81";
-
-  try {
-    const response = await fetch(`${apiBase}/api/admin/cleanup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...window.getAuthHeaders() },
-      body: JSON.stringify({
-        targets,
-        reason,
-        confirm_text: confirmText,
-      }),
-    });
-    if (!response.ok) {
-      let detail = "";
-      try {
-        const data = await response.json();
-        detail = data?.detail || "";
-      } catch (error) {
-        detail = "";
+if (resetAllForm) {
+  resetAllForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    resetMessage.textContent = "";
+    const reason = resetAllForm.querySelector('textarea[name="reason"]')?.value?.trim();
+    const confirmText = resetAllForm.querySelector('input[name="confirm"]')?.value?.trim();
+    if (!reason) {
+      resetMessage.textContent = "Reason is required.";
+      resetMessage.style.color = "#b42318";
+      return;
+    }
+    if (confirmText !== "RESET ALL") {
+      resetMessage.textContent = 'Type "RESET ALL" (exactly) to proceed.';
+      resetMessage.style.color = "#b42318";
+      return;
+    }
+    resetMessage.textContent = "Resetting application...";
+    resetMessage.style.color = "#0f4c81";
+    try {
+      const response = await fetch(`${apiBase}/api/admin/reset-all`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...window.getAuthHeaders() },
+        body: JSON.stringify({ reason, confirm_text: confirmText }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        resetMessage.textContent = data?.detail || "Reset failed.";
+        resetMessage.style.color = "#b42318";
+        return;
       }
-      cleanupMessage.textContent = detail || "Cleanup failed.";
+      const data = await response.json();
+      resetMessage.textContent = data?.message || "Reset complete. Refreshing...";
+      resetMessage.style.color = "#0f4c81";
+      resetAllForm.reset();
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      resetMessage.textContent = "Reset failed.";
+      resetMessage.style.color = "#b42318";
+    }
+  });
+}
+
+if (cleanupForm) {
+  cleanupForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    cleanupMessage.textContent = "";
+    cleanupResult.textContent = "";
+
+      const formData = new FormData(cleanupForm);
+    const targets = formData.getAll("targets");
+    const reason = formData.get("reason")?.trim();
+    const confirmText = formData.get("confirm")?.trim();
+
+    if (!targets.length) {
+      cleanupMessage.textContent = "Select at least one data area.";
       cleanupMessage.style.color = "#b42318";
       return;
     }
-    const data = await response.json();
-    cleanupMessage.textContent = "Cleanup completed.";
+    if (!reason) {
+      cleanupMessage.textContent = "Reason is required.";
+      cleanupMessage.style.color = "#b42318";
+      return;
+    }
+    if (confirmText !== "CONFIRM") {
+      cleanupMessage.textContent = 'Type "CONFIRM" to proceed.';
+      cleanupMessage.style.color = "#b42318";
+      return;
+    }
+
+    cleanupMessage.textContent = "Clearing data...";
     cleanupMessage.style.color = "#0f4c81";
-    cleanupResult.textContent = JSON.stringify(data.deleted || {}, null, 2);
-    cleanupForm.reset();
-  } catch (error) {
-    cleanupMessage.textContent = "Cleanup failed.";
-    cleanupMessage.style.color = "#b42318";
-  }
-});
+
+    try {
+      const response = await fetch(`${apiBase}/api/admin/cleanup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...window.getAuthHeaders() },
+        body: JSON.stringify({
+          targets,
+          reason,
+          confirm_text: confirmText,
+        }),
+      });
+      if (!response.ok) {
+        let detail = "";
+        try {
+          const data = await response.json();
+          detail = data?.detail || "";
+        } catch (error) {
+          detail = "";
+        }
+        cleanupMessage.textContent = detail || "Cleanup failed.";
+        cleanupMessage.style.color = "#b42318";
+        return;
+      }
+      const data = await response.json();
+      cleanupMessage.textContent = "Cleanup completed.";
+      cleanupMessage.style.color = "#0f4c81";
+      cleanupResult.textContent = JSON.stringify(data.deleted || {}, null, 2);
+      cleanupForm.reset();
+    } catch (error) {
+      cleanupMessage.textContent = "Cleanup failed.";
+      cleanupMessage.style.color = "#b42318";
+    }
+  });
+}
 
 const loadUsers = async () => {
   if (!userListRows) return;

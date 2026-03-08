@@ -79,22 +79,27 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
     finacle_agg = {}
     for f in finacle:
         date_key = f.remittance_date or f.pickup_date
-        if not f.bank_store_code or not date_key:
+        store_code = str(f.bank_store_code or "").strip()
+        if not store_code or not date_key:
             continue
-        key = (f.bank_store_code, date_key)
+        key = (store_code, date_key)
         finacle_agg[key] = (finacle_agg.get(key, 0.0) + float(f.remittance_amount or 0))
 
     vendor_id_by_batch = {b.batch_id: b.vendor_id for b in vendor_batches}
     vendor_agg = {}
     for v in vendor:
-        if not v.bank_store_code or not v.pickup_date:
+        store_code = str(v.bank_store_code or "").strip()
+        if not store_code:
+            continue
+        date_key = v.remittance_date or v.pickup_date
+        if not date_key:
             continue
         vendor_id = vendor_id_by_batch.get(v.raw_batch_id)
         vendor_name = None
         if vendor_id:
             vm = db.query(VendorMaster.vendor_name).filter(VendorMaster.vendor_id == vendor_id).first()
             vendor_name = vm[0] if vm else None
-        key = (v.bank_store_code, v.pickup_date)
+        key = (store_code, date_key)
         entry = vendor_agg.setdefault(key, {"amount": 0.0, "vendor_names": set()})
         entry["amount"] += float(v.pickup_amount or 0)
         if vendor_name:
@@ -121,12 +126,14 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
         elif vendor_amount is None:
             status = "MISSING_VENDOR"
             reason = "Vendor record not found for store/date"
-        elif float(finacle_amount) == float(vendor_amount):
-            status = "MATCHED"
-            reason = None
         else:
-            status = "AMOUNT_MISMATCH"
-            reason = "Amount mismatch"
+            fa, va = float(finacle_amount), float(vendor_amount)
+            if abs(fa - va) < 0.01:
+                status = "MATCHED"
+                reason = None
+            else:
+                status = "AMOUNT_MISMATCH"
+                reason = "Amount mismatch"
 
         existing = (
             db.query(ReconciliationResult)

@@ -29,6 +29,7 @@ def list_mappings(
     mapping_ids = [m.mapping_id for m in mappings]
     approval_map = {}
     approval_action = {}
+    approval_id_map = {}
     if mapping_ids:
         approvals = (
             db.query(ApprovalRequest)
@@ -40,6 +41,7 @@ def list_mappings(
         for approval in approvals:
             if approval.entity_id not in approval_map:
                 approval_map[approval.entity_id] = approval.status
+                approval_id_map[approval.entity_id] = approval.approval_id
                 try:
                     proposed = json.loads(approval.proposed_data) if approval.proposed_data else {}
                     approval_action[approval.entity_id] = proposed.get("action")
@@ -48,6 +50,7 @@ def list_mappings(
     result = [
         {
             "mapping_id": m.mapping_id,
+            "approval_id": approval_id_map.get(m.mapping_id),
             "vendor_id": m.vendor_id,
             "vendor_store_code": m.vendor_store_code,
             "bank_store_code": m.bank_store_code,

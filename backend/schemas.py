@@ -67,6 +67,11 @@ class AdminCleanupRequest(BaseModel):
     confirm_text: str
 
 
+class AdminResetAllRequest(BaseModel):
+    reason: str
+    confirm_text: str
+
+
 class StoreMappingResponse(BaseModel):
     mapping_id: int
     vendor_id: int

@@ -191,6 +191,33 @@ def approve_vendor_format(
     return {"status": "APPROVED"}
 
 
+@router.delete("/{format_id}")
+def delete_vendor_format(
+    format_id: int,
+    user: AuthUser = Depends(require_roles("MAKER", "ADMIN")),
+):
+    """Deactivate (delete) an active vendor file format config."""
+    db = SessionLocal()
+    config = (
+        db.query(VendorFileFormatConfig)
+        .filter(VendorFileFormatConfig.format_id == format_id)
+        .first()
+    )
+    if not config:
+        db.close()
+        raise HTTPException(status_code=404, detail="Vendor file format not found")
+    if config.status != "ACTIVE":
+        db.close()
+        raise HTTPException(status_code=400, detail="Only ACTIVE formats can be deleted")
+
+    config.status = "INACTIVE"
+    config.effective_to = datetime.utcnow().date()
+    log_audit(db, "VENDOR_FILE_FORMAT", format_id, "DELETE", None, "Deactivated by user", user.employee_id)
+    db.commit()
+    db.close()
+    return {"status": "DELETED", "format_id": format_id}
+
+
 @router.post("/requests/{approval_id}/reject")
 def reject_vendor_format(
     approval_id: int,

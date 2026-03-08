@@ -25,10 +25,28 @@
           Dangerous actions. Clear data only when needed for testing. This cannot be undone.
         </p>
 
+        <form id="admin-reset-all-form" class="card-form" novalidate style="margin-bottom: 28px; padding: 20px; border: 1px solid #b42318; border-radius: 8px; background: #fef2f2;">
+          <h3 style="color: #b42318; margin-top: 0;">Reset All</h3>
+          <p class="subtitle" style="font-size: 13px;">
+            Clears all application data: uploads, transactions, reconciliation, approvals, vendors, stores, masters, charges, audit logs, month locks. User accounts are preserved. Cannot be undone.
+          </p>
+          <label class="field">
+            <span class="label">Reason</span>
+            <textarea name="reason" rows="2" placeholder="Reason for reset" required></textarea>
+          </label>
+          <label class="field">
+            <span class="label">Type RESET ALL to proceed</span>
+            <input type="text" name="confirm" placeholder="RESET ALL" required />
+          </label>
+          <button type="submit" class="primary-btn" style="background: #b42318;">Reset All</button>
+          <p class="form-message" id="admin-reset-message"></p>
+        </form>
+
         <form id="admin-cleanup-form" class="card-form" novalidate>
           <label class="field">
             <span class="label">Select data to clear</span>
             <div class="checkbox-grid">
+              <label><input type="checkbox" name="targets" value="STORE_MAPPING" /> Store Mapping</label>
               <label><input type="checkbox" name="targets" value="VENDORS_STORES" /> Vendors & Stores</label>
               <label><input type="checkbox" name="targets" value="MASTERS" /> Master Configs</label>
               <label><input type="checkbox" name="targets" value="CHARGES" /> Charges (Vendor & Customer)</label>
@@ -101,6 +119,6 @@
 
     <script src="config.js?v=1"></script>
     <script src="app.js?v=4"></script>
-    <script src="admin-tools.js?v=1"></script>
+    <script src="admin-tools.js?v=3"></script>
   </body>
 </html>

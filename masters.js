@@ -288,7 +288,10 @@ const loadVendorFormats = async (vendorId) => {
           <td>${format.format_name ?? ""}</td>
           <td>${format.status ?? ""}</td>
           <td>${format.effective_from ?? ""}</td>
-          <td><button class="secondary-btn" type="button" data-edit-index="${index}">Edit</button></td>
+          <td>
+            <button class="secondary-btn" type="button" data-edit-index="${index}">Edit</button>
+            <button class="secondary-btn" type="button" data-delete-format-id="${format.format_id}">Delete</button>
+          </td>
         </tr>
       `,
       )
@@ -492,7 +495,33 @@ if (vendorFormatSampleInput) {
 }
 
 if (vendorFormatRows && vendorFormatForm) {
-  vendorFormatRows.addEventListener("click", (event) => {
+  vendorFormatRows.addEventListener("click", async (event) => {
+    const deleteBtn = event.target.closest("button[data-delete-format-id]");
+    if (deleteBtn) {
+      const formatId = Number(deleteBtn.dataset.deleteFormatId);
+      if (!formatId || !confirm("Delete this vendor file format? This cannot be undone.")) return;
+      try {
+        const response = await fetch(`${apiBase}/api/vendor-file-formats/${formatId}`, {
+          method: "DELETE",
+          headers: window.getAuthHeaders(),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data?.detail || "Delete failed");
+        }
+        loadVendorFormats(vendorFormatFilter?.value || "");
+        if (vendorFormatListMessage) {
+          vendorFormatListMessage.textContent = "Format deleted.";
+          vendorFormatListMessage.style.color = "#0f4c81";
+        }
+      } catch (err) {
+        if (vendorFormatListMessage) {
+          vendorFormatListMessage.textContent = err.message || "Delete failed.";
+          vendorFormatListMessage.style.color = "#b42318";
+        }
+      }
+      return;
+    }
     const button = event.target.closest("button[data-edit-index]");
     if (!button) return;
     const index = Number(button.dataset.editIndex);
