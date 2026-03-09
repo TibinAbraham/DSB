@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -7,7 +7,7 @@ from auth import AuthUser, require_roles
 from audit import log_audit
 from db import SessionLocal
 from models import ApprovalRequest, BankStoreMaster
-from schemas import ApprovalDecision, BankStoreRequest
+from schemas import ApprovalDecision, BankStoreDeactivateRequest, BankStoreRequest
 from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
 from utils_month_lock import enforce_month_unlocked
 
@@ -27,6 +27,7 @@ def list_bank_stores(
     stores = query.all()
     result = [
         {
+            "store_id": s.store_id,
             "bank_store_code": s.bank_store_code,
             "store_name": s.store_name,
             "customer_id": s.customer_id,
@@ -108,18 +109,24 @@ def approve_bank_store(
         db.close()
         raise HTTPException(status_code=404, detail="Store not found")
 
-    active = (
-        db.query(BankStoreMaster)
-        .filter(BankStoreMaster.bank_store_code == store.bank_store_code)
-        .filter(BankStoreMaster.store_id != store.store_id)
-        .filter(BankStoreMaster.status == "ACTIVE")
-        .all()
-    )
-    for row in active:
-        row.status = "INACTIVE"
-        row.effective_to = store.effective_from - timedelta(days=1)
+    proposed = json.loads(approval.proposed_data or "{}")
+    is_deactivate = proposed.get("action") == "DEACTIVATE"
 
-    store.status = "ACTIVE"
+    if is_deactivate:
+        store.status = "INACTIVE"
+        store.effective_to = date.today()
+    else:
+        active = (
+            db.query(BankStoreMaster)
+            .filter(BankStoreMaster.bank_store_code == store.bank_store_code)
+            .filter(BankStoreMaster.store_id != store.store_id)
+            .filter(BankStoreMaster.status == "ACTIVE")
+            .all()
+        )
+        for row in active:
+            row.status = "INACTIVE"
+            row.effective_to = store.effective_from - timedelta(days=1)
+        store.status = "ACTIVE"
     store.approved_by = decision.checker_id
     store.approved_date = datetime.utcnow()
     approval.status = "APPROVED"
@@ -161,3 +168,54 @@ def reject_bank_store(
     db.commit()
     db.close()
     return {"status": "REJECTED"}
+
+
+@router.post("/requests/{store_id}/deactivate")
+def request_deactivate_store(
+    store_id: int,
+    payload: BankStoreDeactivateRequest,
+    user: AuthUser = Depends(require_roles("MAKER", "ADMIN")),
+):
+    """Request store deactivation. Requires maker-checker approval."""
+    if payload.store_id != store_id:
+        raise HTTPException(status_code=400, detail="Store ID mismatch")
+    if payload.maker_id != user.employee_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Maker mismatch")
+
+    db = SessionLocal()
+    store = db.query(BankStoreMaster).filter(BankStoreMaster.store_id == store_id).first()
+    if not store:
+        db.close()
+        raise HTTPException(status_code=404, detail="Store not found")
+    if store.status != "ACTIVE":
+        db.close()
+        raise HTTPException(status_code=400, detail="Only ACTIVE stores can be deactivated")
+
+    original_data = json.dumps(
+        {
+            "store_id": store.store_id,
+            "bank_store_code": store.bank_store_code,
+            "store_name": store.store_name,
+            "status": store.status,
+        },
+        default=str,
+    )
+    proposed_data = json.dumps({"action": "DEACTIVATE", "store_id": store_id}, default=str)
+
+    approval = ApprovalRequest(
+        entity_type="BANK_STORE_MASTER",
+        entity_id=store.store_id,
+        original_data=original_data,
+        proposed_data=proposed_data,
+        reason=payload.reason,
+        comments_history=init_comment_history(payload.reason or "Deactivate store", payload.maker_id),
+        maker_id=payload.maker_id,
+        status="PENDING",
+    )
+    db.add(approval)
+    db.flush()
+    approval_id = approval.approval_id
+    log_audit(db, "BANK_STORE_MASTER", store_id, "DEACTIVATE_REQUEST", None, payload.reason, user.employee_id)
+    db.commit()
+    db.close()
+    return {"approval_id": approval_id}

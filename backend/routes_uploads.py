@@ -364,12 +364,24 @@ def upload_finacle(
 @router.get("/finacle/batches")
 def list_finacle_batches(
     limit: int = 50,
+    date_from: str | None = None,
+    date_to: str | None = None,
     user: AuthUser = Depends(require_roles("MAKER", "CHECKER", "ADMIN", "AUDITOR")),
 ):
     db = SessionLocal()
+    q = db.query(FinacleUploadBatch)
+    if date_from:
+        try:
+            q = q.filter(FinacleUploadBatch.mis_date >= datetime.strptime(date_from, "%Y-%m-%d").date())
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            q = q.filter(FinacleUploadBatch.mis_date <= datetime.strptime(date_to, "%Y-%m-%d").date())
+        except ValueError:
+            pass
     rows = (
-        db.query(FinacleUploadBatch)
-        .order_by(FinacleUploadBatch.uploaded_at.desc())
+        q.order_by(FinacleUploadBatch.uploaded_at.desc())
         .limit(limit)
         .all()
     )

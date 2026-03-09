@@ -98,6 +98,41 @@ const applyRoleVisibility = (user) => {
   if (allowed.has("approvals")) {
     updateApprovalNotificationBadge();
   }
+  if (allowed.has("vendor-onboarding") || allowed.has("store-onboarding") || allowed.has("mapping")) {
+    updateClarificationNotificationBadge();
+  }
+};
+
+const updateClarificationNotificationBadge = async () => {
+  const topbarActions = document.querySelector(".topbar-actions");
+  if (!topbarActions) return;
+
+  let badge = topbarActions.querySelector(".clarification-badge");
+  try {
+    const response = await fetch(`${API_BASE}/api/approvals/clarifications/count`, {
+      headers: window.getAuthHeaders(),
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const count = data?.count ?? 0;
+
+    if (count > 0) {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "clarification-badge";
+        badge.setAttribute("aria-live", "polite");
+        const userBadge = topbarActions.querySelector("[data-user-badge]");
+        topbarActions.insertBefore(badge, userBadge?.nextSibling || topbarActions.firstChild);
+      }
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.title = `${count} clarification request${count !== 1 ? "s" : ""} from checker - check Vendor/Store Onboarding or Store Mapping`;
+      badge.hidden = false;
+    } else if (badge) {
+      badge.hidden = true;
+    }
+  } catch (error) {
+    if (badge) badge.hidden = true;
+  }
 };
 
 const updateApprovalNotificationBadge = async () => {

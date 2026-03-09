@@ -385,14 +385,14 @@ const loadVendorHistory = async () => {
           <td>${batch.uploaded_at ?? ""}</td>
           <td>${batch.status ?? ""}</td>
           <td>
-            <button class="secondary-btn" type="button" data-preview-batch="${batch.batch_id}">
-              Preview
+            <button class="secondary-btn action-icon-btn" type="button" data-preview-batch="${batch.batch_id}" title="Preview" aria-label="Preview">
+              <span aria-hidden="true">👁</span>
             </button>
-            <button class="secondary-btn" type="button" data-download-batch="${batch.batch_id}">
-              Download
+            <button class="secondary-btn action-icon-btn" type="button" data-download-batch="${batch.batch_id}" title="Download" aria-label="Download">
+              <span aria-hidden="true">⬇</span>
             </button>
-            <button class="secondary-btn" type="button" data-delete-batch="${batch.batch_id}">
-              Delete
+            <button class="secondary-btn action-icon-btn" type="button" data-delete-batch="${batch.batch_id}" title="Delete" aria-label="Delete">
+              <span aria-hidden="true">✕</span>
             </button>
           </td>
         </tr>

@@ -298,6 +298,15 @@ finacleForm.addEventListener("submit", async (event) => {
   }
 });
 
+const getFinacleFilterParams = () => {
+  const fromEl = document.querySelector("#finacle-filter-from");
+  const toEl = document.querySelector("#finacle-filter-to");
+  const params = new URLSearchParams();
+  if (fromEl?.value) params.set("date_from", fromEl.value);
+  if (toEl?.value) params.set("date_to", toEl.value);
+  return params.toString();
+};
+
 const loadFinacleHistory = async () => {
   if (!historyRows) return;
   historyRows.innerHTML = "";
@@ -306,7 +315,9 @@ const loadFinacleHistory = async () => {
     historyMessage.style.color = "#0f4c81";
   }
   try {
-    const response = await fetch(`${apiBase}/api/uploads/finacle/batches`, {
+    const query = getFinacleFilterParams();
+    const url = `${apiBase}/api/uploads/finacle/batches${query ? `?${query}` : ""}`;
+    const response = await fetch(url, {
       headers: window.getAuthHeaders(),
     });
     if (!response.ok) {
@@ -331,14 +342,14 @@ const loadFinacleHistory = async () => {
           <td>${batch.uploaded_at ?? ""}</td>
           <td>${batch.status ?? ""}</td>
           <td>
-            <button class="secondary-btn" type="button" data-preview-batch="${batch.batch_id}">
-              Preview
+            <button class="secondary-btn action-icon-btn" type="button" data-preview-batch="${batch.batch_id}" title="Preview" aria-label="Preview">
+              <span aria-hidden="true">👁</span>
             </button>
-            <button class="secondary-btn" type="button" data-download-batch="${batch.batch_id}">
-              Download
+            <button class="secondary-btn action-icon-btn" type="button" data-download-batch="${batch.batch_id}" title="Download" aria-label="Download">
+              <span aria-hidden="true">⬇</span>
             </button>
-            <button class="secondary-btn" type="button" data-delete-batch="${batch.batch_id}">
-              Delete
+            <button class="secondary-btn action-icon-btn" type="button" data-delete-batch="${batch.batch_id}" title="Delete" aria-label="Delete">
+              <span aria-hidden="true">✕</span>
             </button>
           </td>
         </tr>
@@ -439,6 +450,21 @@ if (fileInput) {
   fileInput.addEventListener("change", (event) => {
     const file = event.target.files[0];
     handleFilePreview(file);
+  });
+}
+
+const filterApplyBtn = document.querySelector("#finacle-filter-apply");
+const filterClearBtn = document.querySelector("#finacle-filter-clear");
+if (filterApplyBtn) {
+  filterApplyBtn.addEventListener("click", () => loadFinacleHistory());
+}
+if (filterClearBtn) {
+  filterClearBtn.addEventListener("click", () => {
+    const fromEl = document.querySelector("#finacle-filter-from");
+    const toEl = document.querySelector("#finacle-filter-to");
+    if (fromEl) fromEl.value = "";
+    if (toEl) toEl.value = "";
+    loadFinacleHistory();
   });
 }
 

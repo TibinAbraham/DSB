@@ -6,11 +6,40 @@
     <title>Doorstep Banking - Finacle Upload</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <header class="topbar">
+  <body class="app-body">
+    <div class="app-layout">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="sidebar-header">
+          <img src="WaveLogo.png" alt="Wave Logo" class="sidebar-logo" />
+          <div>
+            <p class="sidebar-bank">Federal Bank</p>
+            <p class="sidebar-app">Doorstep Banking</p>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <a class="sidebar-link" data-page="dashboard" href="dashboard.html">Dashboard</a>
+          <a class="sidebar-link" data-page="vendor-onboarding" href="vendor-onboarding.html">Vendor Onboarding</a>
+          <a class="sidebar-link" data-page="store-onboarding" href="store-onboarding.html">Store Onboarding</a>
+          <a class="sidebar-link" data-page="mapping" href="mapping.html">Store Mapping</a>
+          <a class="sidebar-link active" data-page="finacle-upload" href="finacle-upload.html">Finacle Upload</a>
+          <a class="sidebar-link" data-page="vendor-upload" href="vendor-upload.html">Vendor Upload</a>
+          <a class="sidebar-link" data-page="reconciliation" href="reconciliation.html">Reconciliation</a>
+          <a class="sidebar-link" data-page="reconciliation-results" href="reconciliation-results.html">Daily Reconciliation Results</a>
+          <a class="sidebar-link" data-page="masters" href="masters.html">Master Configuration</a>
+          <a class="sidebar-link" data-page="charges" href="charges.html">Charges</a>
+          <a class="sidebar-link" data-page="reports" href="reports.html">Reports</a>
+          <a class="sidebar-link" data-page="approvals" href="approvals.html">Maker-Checker</a>
+          <a class="sidebar-link" data-page="admin-tools" href="admin-tools.html">Admin Tools</a>
+        </nav>
+      </aside>
+      <div class="app-main">
+        <header class="topbar">
       <div class="brand-row">
         <img src="FederalLogo.png" alt="Federal Bank Logo" class="brand-logo" />
-        <div class="brand">Doorstep Banking</div>
+        <div class="app-title-wrap">
+          <div class="brand">Doorstep Banking</div>
+          <div class="topbar-subtitle">Federal Bank Internal System</div>
+        </div>
       </div>
       <div class="topbar-actions">
         <span class="user-badge" data-user-badge></span>
@@ -36,8 +65,10 @@
             <span class="label">Finacle MIS File (Excel)</span>
             <input type="file" name="finacleMis" accept=".xlsx,.xls" required />
           </label>
-          <button type="submit" class="primary-btn">Upload Finacle MIS</button>
-          <button type="button" class="secondary-btn" id="finacle-validate-btn">Validate Stores</button>
+          <div class="button-row finacle-actions-row">
+            <button type="submit" class="primary-btn">Upload Finacle MIS</button>
+            <button type="button" class="secondary-btn" id="finacle-validate-btn">Validate Stores</button>
+          </div>
           <div class="upload-progress" id="finacle-upload-progress" hidden aria-live="polite">
             <div class="upload-progress-label" id="finacle-progress-label">Uploading...</div>
             <div class="upload-progress-bar">
@@ -58,10 +89,22 @@
           </table>
         </section>
 
-        <section class="table-wrapper" aria-labelledby="finacle-history-title">
+        <section class="table-wrapper finacle-history-card" aria-labelledby="finacle-history-title">
           <h2 id="finacle-history-title">Previous Uploads</h2>
           <p class="subtitle">Preview, download, or delete previous uploads.</p>
-          <table>
+          <div class="filter-row finacle-history-filter-row">
+            <label class="field">
+              <span class="label">From Date</span>
+              <input type="date" id="finacle-filter-from" />
+            </label>
+            <label class="field">
+              <span class="label">To Date</span>
+              <input type="date" id="finacle-filter-to" />
+            </label>
+            <button type="button" class="secondary-btn" id="finacle-filter-apply">Apply</button>
+            <button type="button" class="secondary-btn" id="finacle-filter-clear">Clear</button>
+          </div>
+          <table class="finacle-history-table">
             <thead>
               <tr>
                 <th>Batch ID</th>
@@ -77,14 +120,14 @@
           </table>
           <p class="form-message" id="finacle-history-message"></p>
         </section>
-
-        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
       </section>
-    </main>
+        </main>
+      </div>
+    </div>
 
     <script src="config.js?v=1"></script>
     <script src="app.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="finacle-upload.js?v=6"></script>
+    <script src="finacle-upload.js?v=7"></script>
   </body>
 </html>

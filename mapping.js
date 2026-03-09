@@ -186,6 +186,12 @@ const buildRow = (row = {}) => {
   effectiveFromInput.value = formatToInputDate(row.effective_from);
   effectiveFromInput.dataset.field = "effective_from";
 
+  const commentTextarea = document.createElement("textarea");
+  commentTextarea.rows = 2;
+  commentTextarea.placeholder = "Maker comment for this mapping";
+  commentTextarea.value = row.comment || "";
+  commentTextarea.dataset.field = "comment";
+
   block.append(
     createFieldBlock("Vendor", vendorSelect),
     createFieldBlock("Bank Store Code", bankStoreSelect),
@@ -194,6 +200,7 @@ const buildRow = (row = {}) => {
     createFieldBlock("Customer Name", customerNameInput),
     createFieldBlock("Account No", accountNoInput),
     createFieldBlock("Effective From", effectiveFromInput),
+    createFieldBlock("Comment", commentTextarea),
   );
 
   return block;
@@ -270,6 +277,7 @@ const collectRows = () => {
     const customerNameInput = block.querySelector('input[data-field="customer_name"]');
     const accountNoInput = block.querySelector('input[data-field="account_no"]');
     const effectiveFromInput = block.querySelector('input[data-field="effective_from"]');
+    const commentInput = block.querySelector('[data-field="comment"]');
 
     const row = {
       vendor_id: vendorSelect?.value ? Number(vendorSelect.value) : null,
@@ -279,14 +287,24 @@ const collectRows = () => {
       customer_name: customerNameInput?.value?.trim() || "",
       account_no: accountNoInput?.value?.trim() || "",
       effective_from: effectiveFromInput?.value || null,
+      comment: commentInput?.value?.trim() || "",
     };
 
-    const hasData = Object.values(row).some((value) => value);
+    const hasData = [row.vendor_id, row.bank_store_code, row.vendor_store_code].some((v) => v);
     if (hasData) {
       rows.push(row);
     }
   });
   return rows;
+};
+
+const buildReasonFromRows = (rows) => {
+  const parts = rows.map((r, i) => {
+    const label = `Row ${i + 1} (${getVendorLabel(r.vendor_id)} - ${r.bank_store_code || r.vendor_store_code || "?"})`;
+    const comment = (r.comment || "").trim();
+    return comment ? `${label}: ${comment}` : label + ": (no comment)";
+  });
+  return parts.join("; ");
 };
 
 const formatHistory = (raw) => {
@@ -450,18 +468,15 @@ const bindAddRow = () => {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const rows = collectRows();
-  const makerComment = form.querySelector("[name='makerComment']")?.value.trim();
 
-  if (!makerComment) {
-    message.textContent = "Maker comment is required.";
-    message.style.color = "#b42318";
-    return;
-  }
   if (!rows.length) {
     message.textContent = "Add at least one mapping row before saving.";
     message.style.color = "#b42318";
     return;
   }
+
+  const reason = buildReasonFromRows(rows);
+  const mappingsForApi = rows.map(({ comment, ...rest }) => rest);
 
   message.textContent = "Saving store mapping...";
   message.style.color = "#0f4c81";
@@ -471,8 +486,8 @@ form.addEventListener("submit", async (event) => {
       method: "POST",
       headers: { "Content-Type": "application/json", ...window.getAuthHeaders() },
       body: JSON.stringify({
-        mappings: rows,
-        reason: makerComment,
+        mappings: mappingsForApi,
+        reason,
         maker_id: sessionStorage.getItem("currentUser")
           ? JSON.parse(sessionStorage.getItem("currentUser")).employeeId
           : "SYSTEM",

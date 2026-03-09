@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -7,7 +7,7 @@ from auth import AuthUser, require_roles
 from audit import log_audit
 from db import SessionLocal
 from models import ApprovalRequest, VendorMaster
-from schemas import ApprovalDecision, VendorMasterRequest
+from schemas import ApprovalDecision, VendorDeactivateRequest, VendorMasterRequest
 from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
 from utils_month_lock import enforce_month_unlocked
 
@@ -95,18 +95,24 @@ def approve_vendor(
         db.close()
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    active = (
-        db.query(VendorMaster)
-        .filter(VendorMaster.vendor_code == vendor.vendor_code)
-        .filter(VendorMaster.vendor_id != vendor.vendor_id)
-        .filter(VendorMaster.status == "ACTIVE")
-        .all()
-    )
-    for row in active:
-        row.status = "INACTIVE"
-        row.effective_to = vendor.effective_from - timedelta(days=1)
+    proposed = json.loads(approval.proposed_data or "{}")
+    is_deactivate = proposed.get("action") == "DEACTIVATE"
 
-    vendor.status = "ACTIVE"
+    if is_deactivate:
+        vendor.status = "INACTIVE"
+        vendor.effective_to = date.today()
+    else:
+        active = (
+            db.query(VendorMaster)
+            .filter(VendorMaster.vendor_code == vendor.vendor_code)
+            .filter(VendorMaster.vendor_id != vendor.vendor_id)
+            .filter(VendorMaster.status == "ACTIVE")
+            .all()
+        )
+        for row in active:
+            row.status = "INACTIVE"
+            row.effective_to = vendor.effective_from - timedelta(days=1)
+        vendor.status = "ACTIVE"
     vendor.approved_by = decision.checker_id
     vendor.approved_date = datetime.utcnow()
     approval.status = "APPROVED"
@@ -148,3 +154,49 @@ def reject_vendor(
     db.commit()
     db.close()
     return {"status": "REJECTED"}
+
+
+@router.post("/requests/{vendor_id}/deactivate")
+def request_deactivate_vendor(
+    vendor_id: int,
+    payload: VendorDeactivateRequest,
+    user: AuthUser = Depends(require_roles("MAKER", "ADMIN")),
+):
+    """Request vendor deactivation. Requires maker-checker approval."""
+    if payload.vendor_id != vendor_id:
+        raise HTTPException(status_code=400, detail="Vendor ID mismatch")
+    if payload.maker_id != user.employee_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Maker mismatch")
+
+    db = SessionLocal()
+    vendor = db.query(VendorMaster).filter(VendorMaster.vendor_id == vendor_id).first()
+    if not vendor:
+        db.close()
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    if vendor.status != "ACTIVE":
+        db.close()
+        raise HTTPException(status_code=400, detail="Only ACTIVE vendors can be deactivated")
+
+    original_data = json.dumps(
+        {"vendor_id": vendor.vendor_id, "vendor_name": vendor.vendor_name, "vendor_code": vendor.vendor_code, "status": vendor.status},
+        default=str,
+    )
+    proposed_data = json.dumps({"action": "DEACTIVATE", "vendor_id": vendor_id}, default=str)
+
+    approval = ApprovalRequest(
+        entity_type="VENDOR_MASTER",
+        entity_id=vendor.vendor_id,
+        original_data=original_data,
+        proposed_data=proposed_data,
+        reason=payload.reason,
+        comments_history=init_comment_history(payload.reason or "Deactivate vendor", payload.maker_id),
+        maker_id=payload.maker_id,
+        status="PENDING",
+    )
+    db.add(approval)
+    db.flush()
+    approval_id = approval.approval_id
+    log_audit(db, "VENDOR_MASTER", vendor_id, "DEACTIVATE_REQUEST", None, payload.reason, user.employee_id)
+    db.commit()
+    db.close()
+    return {"approval_id": approval_id}

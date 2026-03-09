@@ -6,11 +6,40 @@
     <title>Doorstep Banking - Vendor Onboarding</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <header class="topbar">
+  <body class="app-body">
+    <div class="app-layout">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="sidebar-header">
+          <img src="WaveLogo.png" alt="Wave Logo" class="sidebar-logo" />
+          <div>
+            <p class="sidebar-bank">Federal Bank</p>
+            <p class="sidebar-app">Doorstep Banking</p>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <a class="sidebar-link" data-page="dashboard" href="dashboard.html">Dashboard</a>
+          <a class="sidebar-link active" data-page="vendor-onboarding" href="vendor-onboarding.html">Vendor Onboarding</a>
+          <a class="sidebar-link" data-page="store-onboarding" href="store-onboarding.html">Store Onboarding</a>
+          <a class="sidebar-link" data-page="mapping" href="mapping.html">Store Mapping</a>
+          <a class="sidebar-link" data-page="finacle-upload" href="finacle-upload.html">Finacle Upload</a>
+          <a class="sidebar-link" data-page="vendor-upload" href="vendor-upload.html">Vendor Upload</a>
+          <a class="sidebar-link" data-page="reconciliation" href="reconciliation.html">Reconciliation</a>
+          <a class="sidebar-link" data-page="reconciliation-results" href="reconciliation-results.html">Daily Reconciliation Results</a>
+          <a class="sidebar-link" data-page="masters" href="masters.html">Master Configuration</a>
+          <a class="sidebar-link" data-page="charges" href="charges.html">Charges</a>
+          <a class="sidebar-link" data-page="reports" href="reports.html">Reports</a>
+          <a class="sidebar-link" data-page="approvals" href="approvals.html">Maker-Checker</a>
+          <a class="sidebar-link" data-page="admin-tools" href="admin-tools.html">Admin Tools</a>
+        </nav>
+      </aside>
+      <div class="app-main">
+        <header class="topbar">
       <div class="brand-row">
         <img src="FederalLogo.png" alt="Federal Bank Logo" class="brand-logo" />
-        <div class="brand">Doorstep Banking</div>
+        <div class="app-title-wrap">
+          <div class="brand">Doorstep Banking</div>
+          <div class="topbar-subtitle">Federal Bank Internal System</div>
+        </div>
       </div>
       <div class="topbar-actions">
         <span class="user-badge" data-user-badge></span>
@@ -45,7 +74,10 @@
               required
             ></textarea>
           </label>
-          <button type="submit" class="primary-btn">Add Vendor</button>
+          <div class="button-row">
+            <button type="submit" class="primary-btn">Add Vendor</button>
+            <button type="button" class="secondary-btn" id="file-config-btn">File Config</button>
+          </div>
           <p class="form-message" id="vendor-message" role="status" aria-live="polite"></p>
         </form>
 
@@ -56,10 +88,86 @@
                 <th>Vendor Name</th>
                 <th>Vendor Code</th>
                 <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="vendor-rows"></tbody>
           </table>
+        </div>
+
+        <div class="approval-modal" id="deactivate-vendor-modal" role="dialog" aria-labelledby="deactivate-modal-title" aria-modal="true" hidden>
+          <div class="approval-modal-backdrop"></div>
+          <div class="approval-modal-content">
+            <div class="approval-modal-header">
+              <h2 id="deactivate-modal-title">Request Vendor Deactivation</h2>
+              <button type="button" class="approval-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="approval-modal-body">
+              <p class="subtitle" style="margin-bottom:12px">This request will be sent for checker approval.</p>
+              <form id="deactivate-vendor-form" class="card-form">
+                <input type="hidden" name="deactivateVendorId" id="deactivate-vendor-id" />
+                <label class="field">
+                  <span class="label">Vendor</span>
+                  <input type="text" id="deactivate-vendor-name" readonly disabled style="background:#f5f5f5;cursor:not-allowed" />
+                </label>
+                <label class="field">
+                  <span class="label">Maker Comment (required)</span>
+                  <textarea name="makerComment" id="deactivate-maker-comment" rows="3" placeholder="Enter reason for checker" required></textarea>
+                </label>
+                <button type="submit" class="primary-btn">Submit Request</button>
+                <p class="form-message" id="deactivate-vendor-message"></p>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="approval-modal" id="file-config-modal" role="dialog" aria-labelledby="file-config-modal-title" aria-modal="true" hidden>
+          <div class="approval-modal-backdrop"></div>
+          <div class="approval-modal-content">
+            <div class="approval-modal-header">
+              <h2 id="file-config-modal-title">Vendor File Format Config</h2>
+              <button type="button" class="approval-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="approval-modal-body">
+              <p class="subtitle" style="margin-bottom:12px">Add file format for a vendor. Upload a sample Excel file to load column headers, then map them below.</p>
+              <form id="vo-vendor-format-form" class="card-form">
+                <label class="field">
+                  <span class="label">Vendor</span>
+                  <select id="vo-vendor-format-vendor" name="vendorId" required>
+                    <option value="">Select vendor</option>
+                  </select>
+                </label>
+                <input type="text" name="formatName" placeholder="Format name" required />
+                <label class="field">
+                  <span class="label">Sample Vendor File (to load column headers)</span>
+                  <input type="file" id="vo-vendor-format-sample" accept=".xlsx,.xls" />
+                </label>
+                <div class="table-wrapper" style="margin:12px 0">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Canonical Field</th>
+                        <th>Vendor Column Header</th>
+                      </tr>
+                    </thead>
+                    <tbody id="vo-vendor-format-mapping-rows"></tbody>
+                  </table>
+                  <button type="button" class="secondary-btn" id="vo-generate-vendor-mapping" style="margin-top:8px">Generate JSON</button>
+                </div>
+                <label class="field">
+                  <span class="label">Header Mapping (JSON)</span>
+                  <textarea name="headerMapping" id="vo-header-mapping" rows="4" placeholder='{"pickup_date_column":"PickUpDate","pickup_amount_column":"Total","vendor_store_code_column":"HCM_COUSTOMERCODE"}' required></textarea>
+                </label>
+                <input type="date" name="effectiveFrom" required />
+                <label class="field">
+                  <span class="label">Maker Comment</span>
+                  <textarea name="makerComment" rows="2" placeholder="Comment for checker"></textarea>
+                </label>
+                <button type="submit" class="primary-btn">Submit Request</button>
+                <p class="form-message" id="vo-vendor-format-message"></p>
+              </form>
+            </div>
+          </div>
         </div>
 
         <div class="table-wrapper">
@@ -81,13 +189,14 @@
           </table>
           <p class="form-message" id="clarification-message"></p>
         </div>
-
-        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
       </section>
-    </main>
+        </main>
+      </div>
+    </div>
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=2"></script>
-    <script src="vendor-onboarding.js?v=9"></script>
+    <script src="app.js?v=6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="vendor-onboarding.js?v=12"></script>
   </body>
 </html>

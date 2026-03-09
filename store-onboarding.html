@@ -6,11 +6,40 @@
     <title>Doorstep Banking - Store Onboarding</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <header class="topbar">
+  <body class="app-body">
+    <div class="app-layout">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="sidebar-header">
+          <img src="WaveLogo.png" alt="Wave Logo" class="sidebar-logo" />
+          <div>
+            <p class="sidebar-bank">Federal Bank</p>
+            <p class="sidebar-app">Doorstep Banking</p>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <a class="sidebar-link" data-page="dashboard" href="dashboard.html">Dashboard</a>
+          <a class="sidebar-link" data-page="vendor-onboarding" href="vendor-onboarding.html">Vendor Onboarding</a>
+          <a class="sidebar-link active" data-page="store-onboarding" href="store-onboarding.html">Store Onboarding</a>
+          <a class="sidebar-link" data-page="mapping" href="mapping.html">Store Mapping</a>
+          <a class="sidebar-link" data-page="finacle-upload" href="finacle-upload.html">Finacle Upload</a>
+          <a class="sidebar-link" data-page="vendor-upload" href="vendor-upload.html">Vendor Upload</a>
+          <a class="sidebar-link" data-page="reconciliation" href="reconciliation.html">Reconciliation</a>
+          <a class="sidebar-link" data-page="reconciliation-results" href="reconciliation-results.html">Daily Reconciliation Results</a>
+          <a class="sidebar-link" data-page="masters" href="masters.html">Master Configuration</a>
+          <a class="sidebar-link" data-page="charges" href="charges.html">Charges</a>
+          <a class="sidebar-link" data-page="reports" href="reports.html">Reports</a>
+          <a class="sidebar-link" data-page="approvals" href="approvals.html">Maker-Checker</a>
+          <a class="sidebar-link" data-page="admin-tools" href="admin-tools.html">Admin Tools</a>
+        </nav>
+      </aside>
+      <div class="app-main">
+        <header class="topbar">
       <div class="brand-row">
         <img src="FederalLogo.png" alt="Federal Bank Logo" class="brand-logo" />
-        <div class="brand">Doorstep Banking</div>
+        <div class="app-title-wrap">
+          <div class="brand">Doorstep Banking</div>
+          <div class="topbar-subtitle">Federal Bank Internal System</div>
+        </div>
       </div>
       <div class="topbar-actions">
         <span class="user-badge" data-user-badge></span>
@@ -63,6 +92,19 @@
           <p class="form-message" id="store-message" role="status" aria-live="polite"></p>
         </form>
 
+        <div class="store-list-toolbar">
+          <label class="field" style="margin:0">
+            <select id="store-status-filter" aria-label="Store status filter">
+              <option value="">All</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </label>
+          <button type="button" class="icon-btn store-download-btn" id="store-download-btn" title="Download list as CSV" aria-label="Download list">
+            <span class="store-download-icon" aria-hidden="true">⬇</span>
+          </button>
+        </div>
+
         <div class="table-wrapper">
           <table>
             <thead>
@@ -74,10 +116,37 @@
                 <th>Account No</th>
                 <th>Effective From</th>
                 <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="store-rows"></tbody>
           </table>
+        </div>
+
+        <div class="approval-modal" id="deactivate-store-modal" role="dialog" aria-labelledby="deactivate-store-modal-title" aria-modal="true" hidden>
+          <div class="approval-modal-backdrop"></div>
+          <div class="approval-modal-content">
+            <div class="approval-modal-header">
+              <h2 id="deactivate-store-modal-title">Request Store Deactivation</h2>
+              <button type="button" class="approval-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="approval-modal-body">
+              <p class="subtitle" style="margin-bottom:12px">This request will be sent for checker approval.</p>
+              <form id="deactivate-store-form" class="card-form">
+                <input type="hidden" name="deactivateStoreId" id="deactivate-store-id" />
+                <label class="field">
+                  <span class="label">Store</span>
+                  <input type="text" id="deactivate-store-name" readonly disabled style="background:#f5f5f5;cursor:not-allowed" />
+                </label>
+                <label class="field">
+                  <span class="label">Maker Comment (required)</span>
+                  <textarea name="makerComment" id="deactivate-store-maker-comment" rows="3" placeholder="Enter reason for checker" required></textarea>
+                </label>
+                <button type="submit" class="primary-btn">Submit Request</button>
+                <p class="form-message" id="deactivate-store-message"></p>
+              </form>
+            </div>
+          </div>
         </div>
 
         <div class="table-wrapper">
@@ -99,13 +168,13 @@
           </table>
           <p class="form-message" id="clarification-message"></p>
         </div>
-
-        <a class="secondary-link" href="dashboard.html">Back to dashboard</a>
       </section>
-    </main>
+        </main>
+      </div>
+    </div>
 
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=2"></script>
-    <script src="store-onboarding.js?v=1"></script>
+    <script src="app.js?v=6"></script>
+    <script src="store-onboarding.js?v=3"></script>
   </body>
 </html>

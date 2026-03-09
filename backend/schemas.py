@@ -153,6 +153,12 @@ class VendorMasterResponse(BaseModel):
     status: str
 
 
+class VendorDeactivateRequest(BaseModel):
+    vendor_id: int
+    maker_id: str
+    reason: Optional[str] = None
+
+
 class BankStoreRequest(BaseModel):
     bank_store_code: str
     store_name: Optional[str] = None
@@ -163,6 +169,12 @@ class BankStoreRequest(BaseModel):
     daily_pickup_limit: Optional[float] = None
     effective_from: date
     status: str
+    maker_id: str
+    reason: Optional[str] = None
+
+
+class BankStoreDeactivateRequest(BaseModel):
+    store_id: int
     maker_id: str
     reason: Optional[str] = None
 

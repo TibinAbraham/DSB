@@ -61,6 +61,20 @@ def list_pending(user: AuthUser = Depends(require_roles("CHECKER", "ADMIN"))):
     return payload
 
 
+@router.get("/clarifications/count")
+def clarifications_count(user: AuthUser = Depends(require_roles("MAKER", "ADMIN"))):
+    """Return count of clarification requests for the current maker (dashboard notification)."""
+    db = SessionLocal()
+    count = (
+        db.query(ApprovalRequest)
+        .filter(ApprovalRequest.status == "CLARIFICATION")
+        .filter(ApprovalRequest.maker_id == user.employee_id)
+        .count()
+    )
+    db.close()
+    return {"count": count}
+
+
 @router.get("/clarifications")
 def list_clarifications(user: AuthUser = Depends(require_roles("MAKER", "ADMIN"))):
     db = SessionLocal()
