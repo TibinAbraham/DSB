@@ -1,5 +1,8 @@
--- Doorstep Banking Application - Oracle DDL
+-- =============================================================================
+-- Doorstep Banking Application - Complete Oracle DDL
+-- Single consolidated schema for fresh database setup. Run on an empty schema.
 -- No DELETE operations. Use status + effective dates.
+-- =============================================================================
 
 -- =========================
 -- Sequences
@@ -363,6 +366,7 @@ CREATE TABLE reconciliation_results (
   finacle_canonical_id NUMBER,
   vendor_canonical_id  NUMBER,
   bank_store_code     VARCHAR2(30) NOT NULL,
+  mis_date            DATE,
   pickup_date         DATE,
   remittance_date     DATE,
   pickup_amount       NUMBER(18,2),
@@ -424,7 +428,7 @@ CREATE TABLE reconciliation_corrections (
   proposed_data       CLOB NOT NULL,
   status              VARCHAR2(20) NOT NULL,
   maker_id            VARCHAR2(50) NOT NULL,
-  checker_id          VARCHAR2(50),
+  checker_id         VARCHAR2(50),
   created_date        DATE DEFAULT SYSDATE NOT NULL,
   approved_date       DATE,
   CONSTRAINT fk_corr_recon FOREIGN KEY (recon_id) REFERENCES reconciliation_results(recon_id),
@@ -458,56 +462,41 @@ CREATE TABLE month_lock (
   CONSTRAINT chk_month_lock_status CHECK (status IN ('OPEN','LOCKED'))
 );
 
--- =========================
--- Optional Seed Data (examples)
--- =========================
--- Charge Configuration (required codes for charge engine)
--- INSERT INTO charge_configuration_master
---   (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
--- VALUES
---   (seq_charge_config_master.nextval, 'ENHANCEMENT_THRESHOLD_AMOUNT', 'Enhancement threshold', 50000, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
--- INSERT INTO charge_configuration_master
---   (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
--- VALUES
---   (seq_charge_config_master.nextval, 'ENHANCEMENT_CHARGE_AMOUNT', 'Enhancement charge', 60, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
--- INSERT INTO charge_configuration_master
---   (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
--- VALUES
---   (seq_charge_config_master.nextval, 'GST_ENABLED', 'GST enabled', NULL, 'Y', 'ACTIVE', SYSDATE, 'SYSTEM');
--- INSERT INTO charge_configuration_master
---   (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
--- VALUES
---   (seq_charge_config_master.nextval, 'GST_RATE_PERCENT', 'GST percent', 18, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
--- INSERT INTO charge_configuration_master
---   (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
--- VALUES
---   (seq_charge_config_master.nextval, 'CUSTOMER_CHARGE_RATE_PERCENT', 'Customer charge rate', 0.5, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
---
--- Vendor file format mapping example (replace :vendor_id)
--- INSERT INTO vendor_file_format_config (format_id, vendor_id, format_name, status, effective_from, created_by)
--- VALUES (seq_vendor_file_format.nextval, :vendor_id, 'Default format', 'ACTIVE', SYSDATE, 'SYSTEM');
--- Then insert header mappings (replace :format_id):
--- INSERT INTO vendor_file_format_header_mapping (format_id, mapping_key, source_column) VALUES (:format_id, 'pickup_date_column', 'PickUpDate');
--- INSERT INTO vendor_file_format_header_mapping (format_id, mapping_key, source_column) VALUES (:format_id, 'pickup_amount_column', 'Total');
---
--- =========================
--- User Accounts (AD login)
--- =========================
--- First admin: replace YOUR_EMPLOYEE_ID and Your Full Name. Password validated by AD.
--- INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
--- VALUES (seq_user_account.nextval, 'YOUR_EMPLOYEE_ID', 'Your Full Name', 'ADMIN', 'AD', 'ACTIVE', SYSDATE);
---
--- Dummy users (FED001/FED002/FED003) - uncomment to add:
---INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
---VALUES (seq_user_account.nextval, 'FED001', 'Maker User', 'MAKER', 'AD', 'ACTIVE', SYSDATE);
---INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
---VALUES (seq_user_account.nextval, 'FED002', 'Checker User', 'CHECKER', 'AD', 'ACTIVE', SYSDATE);
---INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
---VALUES (seq_user_account.nextval, 'FED003', 'Admin User', 'ADMIN', 'AD', 'ACTIVE', SYSDATE);
---
--- =========================
+-- =============================================================================
+-- Optional Seed Data (uncomment as needed)
+-- =============================================================================
+
+-- Charge Configuration (required for charge engine)
+/*
+INSERT INTO charge_configuration_master (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
+VALUES (seq_charge_config_master.nextval, 'ENHANCEMENT_THRESHOLD_AMOUNT', 'Enhancement threshold', 50000, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
+INSERT INTO charge_configuration_master (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
+VALUES (seq_charge_config_master.nextval, 'ENHANCEMENT_CHARGE_AMOUNT', 'Enhancement charge', 60, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
+INSERT INTO charge_configuration_master (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
+VALUES (seq_charge_config_master.nextval, 'GST_ENABLED', 'GST enabled', NULL, 'Y', 'ACTIVE', SYSDATE, 'SYSTEM');
+INSERT INTO charge_configuration_master (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
+VALUES (seq_charge_config_master.nextval, 'GST_RATE_PERCENT', 'GST percent', 18, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
+INSERT INTO charge_configuration_master (config_id, config_code, config_name, value_number, value_text, status, effective_from, created_by)
+VALUES (seq_charge_config_master.nextval, 'CUSTOMER_CHARGE_RATE_PERCENT', 'Customer charge rate', 0.5, NULL, 'ACTIVE', SYSDATE, 'SYSTEM');
+*/
+
+-- User Accounts (replace YOUR_EMPLOYEE_ID and Your Full Name for AD login)
+/*
+INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+VALUES (seq_user_account.nextval, 'YOUR_EMPLOYEE_ID', 'Your Full Name', 'ADMIN', 'AD', 'ACTIVE', SYSDATE);
+*/
+
+-- Dummy users for local dev (AD_SKIP=true)
+/*
+INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+VALUES (seq_user_account.nextval, 'FED001', 'Maker User', 'MAKER', 'AD', 'ACTIVE', SYSDATE);
+INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+VALUES (seq_user_account.nextval, 'FED002', 'Checker User', 'CHECKER', 'AD', 'ACTIVE', SYSDATE);
+INSERT INTO user_account (user_id, employee_id, full_name, role_code, password_hash, status, created_date)
+VALUES (seq_user_account.nextval, 'FED003', 'Admin User', 'ADMIN', 'AD', 'ACTIVE', SYSDATE);
+*/
+
 -- Customer Charge Slabs (replace 1 with vendor_id)
--- =========================
 /*
 INSERT INTO customer_charge_slabs (slab_id, vendor_id, amount_from, amount_to, charge_amount, slab_label, status, effective_from, created_by)
 SELECT seq_customer_charge_slab.nextval, 1, 0, 50000, 4000, 'Upto 50K', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
@@ -522,3 +511,5 @@ UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 1500001, 2000000, 33000, '
 UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 2000001, 5000000, 42000, 'Above 20L to 50L', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual
 UNION ALL SELECT seq_customer_charge_slab.nextval, 1, 5000001, 10000000, 58500, 'Above 50L to 1 Cr', 'ACTIVE', SYSDATE, 'SYSTEM' FROM dual;
 */
+
+COMMIT;
