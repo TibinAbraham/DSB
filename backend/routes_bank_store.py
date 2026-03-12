@@ -8,7 +8,7 @@ from audit import log_audit
 from db import SessionLocal
 from models import ApprovalRequest, BankStoreMaster
 from schemas import ApprovalDecision, BankStoreDeactivateRequest, BankStoreRequest
-from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
+from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history, safe_json_loads_clob
 from utils_month_lock import enforce_month_unlocked
 
 
@@ -104,12 +104,13 @@ def approve_bank_store(
         raise HTTPException(status_code=404, detail="Approval not found")
     enforce_checker_rules(user, approval.maker_id, decision.checker_id, decision.comment)
 
+    db.refresh(approval)  # Force load CLOB columns (helps Oracle on Windows)
     store = db.query(BankStoreMaster).filter(BankStoreMaster.store_id == approval.entity_id).first()
     if not store:
         db.close()
         raise HTTPException(status_code=404, detail="Store not found")
 
-    proposed = json.loads(approval.proposed_data or "{}")
+    proposed = safe_json_loads_clob(approval.proposed_data)
     is_deactivate = proposed.get("action") == "DEACTIVATE"
 
     if is_deactivate:

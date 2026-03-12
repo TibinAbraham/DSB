@@ -8,7 +8,7 @@ from audit import log_audit
 from db import SessionLocal
 from models import ApprovalRequest, ExceptionRecord, ReconciliationCorrection, ReconciliationResult
 from schemas import ApprovalDecision, CorrectionRequest
-from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
+from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history, safe_json_loads_clob
 from utils_month_lock import enforce_month_unlocked
 
 
@@ -130,11 +130,8 @@ def approve_correction(
     if base_date:
         enforce_month_unlocked(db, base_date.strftime("%Y%m"))
 
-    proposed = {}
-    try:
-        proposed = json.loads(correction.proposed_data or "{}")
-    except json.JSONDecodeError:
-        proposed = {}
+    db.refresh(correction)  # Force load CLOB columns (helps Oracle on Windows)
+    proposed = safe_json_loads_clob(correction.proposed_data)
 
     if proposed.get("requested_action") == "AMOUNT_EDIT":
         details = proposed.get("details")

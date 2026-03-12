@@ -8,7 +8,7 @@ from audit import log_audit
 from db import SessionLocal
 from models import ApprovalRequest, CanonicalTransaction, RemittanceEntry
 from schemas import ApprovalDecision, RemittanceApprovalRequest, RemittanceRequest, RemittanceStatusRequest
-from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
+from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history, safe_json_loads_clob
 from utils_month_lock import enforce_month_unlocked
 
 
@@ -199,11 +199,8 @@ def reject_remittance(
         db.close()
         raise HTTPException(status_code=404, detail="Remittance not found")
     entry.status = "REJECTED"
-    try:
-        proposed = json.loads(approval.proposed_data)
-        entry.rejection_reason = proposed.get("rejection_reason")
-    except (TypeError, ValueError):
-        entry.rejection_reason = None
+    proposed = safe_json_loads_clob(approval.proposed_data)
+    entry.rejection_reason = proposed.get("rejection_reason")
     entry.approved_by = decision.checker_id
     entry.approved_date = datetime.utcnow()
     approval.status = "REJECTED"

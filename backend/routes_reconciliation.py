@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from auth import AuthUser, require_roles
 from audit import log_audit
 from db import SessionLocal
+from utils_approval import safe_json_loads_clob
 from models import (
     BankStoreMaster,
     CanonicalTransaction,
@@ -159,12 +160,9 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
                 .first()
             )
             if correction_row:
-                try:
-                    proposed = json.loads(correction_row[0].proposed_data or "{}")
-                    if proposed.get("requested_action") == "AMOUNT_EDIT":
-                        has_approved_correction = True
-                except json.JSONDecodeError:
-                    pass
+                proposed = safe_json_loads_clob(correction_row[0].proposed_data)
+                if proposed.get("requested_action") == "AMOUNT_EDIT":
+                    has_approved_correction = True
 
         if existing:
             recon = existing

@@ -8,7 +8,7 @@ from audit import log_audit
 from db import SessionLocal
 from models import ApprovalRequest, VendorMaster, VendorStoreMappingMaster
 from schemas import ApprovalDecision, StoreMappingDeactivateRequest, StoreMappingRequest
-from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history
+from utils_approval import append_comment_history, enforce_checker_rules, init_comment_history, safe_json_loads_clob
 from utils_month_lock import enforce_month_unlocked
 
 
@@ -42,11 +42,8 @@ def list_mappings(
             if approval.entity_id not in approval_map:
                 approval_map[approval.entity_id] = approval.status
                 approval_id_map[approval.entity_id] = approval.approval_id
-                try:
-                    proposed = json.loads(approval.proposed_data) if approval.proposed_data else {}
-                    approval_action[approval.entity_id] = proposed.get("action")
-                except json.JSONDecodeError:
-                    approval_action[approval.entity_id] = None
+                proposed = safe_json_loads_clob(approval.proposed_data)
+                approval_action[approval.entity_id] = proposed.get("action")
     result = [
         {
             "mapping_id": m.mapping_id,
@@ -135,6 +132,7 @@ def approve_mapping(
         raise HTTPException(status_code=404, detail="Approval not found")
     enforce_checker_rules(user, approval.maker_id, decision.checker_id, decision.comment)
 
+    db.refresh(approval)  # Force load CLOB columns (helps Oracle on Windows)
     mapping = (
         db.query(VendorStoreMappingMaster)
         .filter(VendorStoreMappingMaster.mapping_id == approval.entity_id)
@@ -144,12 +142,8 @@ def approve_mapping(
         db.close()
         raise HTTPException(status_code=404, detail="Mapping not found")
 
-    action = None
-    try:
-        proposed = json.loads(approval.proposed_data) if approval.proposed_data else {}
-        action = proposed.get("action")
-    except json.JSONDecodeError:
-        action = None
+    proposed = safe_json_loads_clob(approval.proposed_data)
+    action = proposed.get("action")
 
     if action == "DEACTIVATE":
         mapping.status = "INACTIVE"
