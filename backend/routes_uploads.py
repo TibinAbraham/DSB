@@ -434,8 +434,10 @@ def preview_finacle_batch(
     )
     parsed = []
     for row in rows:
-        db.refresh(row)
-        parsed.append(safe_json_loads_clob(row.row_payload, default={}, raise_on_error=False))
+        raw = row.row_payload
+        if hasattr(raw, "read"):
+            raw = raw.read()
+        parsed.append(safe_json_loads_clob(raw, default={}, raise_on_error=False))
     headers = list(parsed[0].keys()) if parsed else []
     data_rows = [[_format_finacle_cell(key, item.get(key)) for key in headers] for item in parsed]
     log_audit(db, "UPLOAD", batch_id, "PREVIEW", None, f"rows={len(parsed)}", user.employee_id)
@@ -462,8 +464,10 @@ def download_finacle_batch(
     )
     parsed = []
     for row in raw_rows:
-        db.refresh(row)
-        parsed.append(safe_json_loads_clob(row.row_payload, default={}, raise_on_error=False))
+        raw = row.row_payload
+        if hasattr(raw, "read"):
+            raw = raw.read()
+        parsed.append(safe_json_loads_clob(raw, default={}, raise_on_error=False))
     headers = list(parsed[0].keys()) if parsed else []
     df = pd.DataFrame(parsed, columns=headers if headers else None)
     if "TRAN_DATE" in df.columns:
@@ -580,8 +584,10 @@ def preview_vendor_batch(
     )
     parsed = []
     for row in rows:
-        db.refresh(row)
-        parsed.append(safe_json_loads_clob(row.row_payload, default={}, raise_on_error=False))
+        raw = row.row_payload
+        if hasattr(raw, "read"):
+            raw = raw.read()
+        parsed.append(safe_json_loads_clob(raw, default={}, raise_on_error=False))
     headers = list(parsed[0].keys()) if parsed else []
     data_rows = [[item.get(key, "") for key in headers] for item in parsed]
     log_audit(db, "UPLOAD", batch_id, "PREVIEW", None, f"rows={len(parsed)}", user.employee_id)
@@ -608,8 +614,10 @@ def download_vendor_batch(
     )
     parsed = []
     for row in raw_rows:
-        db.refresh(row)
-        parsed.append(safe_json_loads_clob(row.row_payload, default={}, raise_on_error=False))
+        raw = row.row_payload
+        if hasattr(raw, "read"):
+            raw = raw.read()
+        parsed.append(safe_json_loads_clob(raw, default={}, raise_on_error=False))
     headers = list(parsed[0].keys()) if parsed else []
     df = pd.DataFrame(parsed, columns=headers if headers else None)
     buffer = io.BytesIO()
