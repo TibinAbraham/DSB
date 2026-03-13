@@ -32,6 +32,16 @@ from utils_month_lock import enforce_month_unlocked
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
+PAYLOAD_MAX_LEN = 4000  # VARCHAR2(4000) limit for row_payload, proposed_data, etc.
+
+
+def _truncate_payload(s: str) -> str:
+    """Truncate to fit VARCHAR2(4000)."""
+    if not s or len(s) <= PAYLOAD_MAX_LEN:
+        return s
+    return s[:PAYLOAD_MAX_LEN]
+
+
 FINACLE_REQUIRED_HEADERS = {
     "SOL_ID",
     "FORACID",
@@ -259,7 +269,7 @@ def upload_finacle(
     has_unmapped_stores = False
     missing_store_codes = set()
     for index, row in df.iterrows():
-        row_payload = json.dumps(row.to_dict(), default=str)
+        row_payload = _truncate_payload(json.dumps(row.to_dict(), default=str))
         db.add(
             FinacleRawStaging(
                 batch_id=batch.batch_id,
@@ -765,7 +775,7 @@ def upload_vendor(
     has_unmapped = False
     valid_rows = []
     for index, row in df.iterrows():
-        row_payload = json.dumps(row.to_dict(), default=str)
+        row_payload = _truncate_payload(json.dumps(row.to_dict(), default=str))
         db.add(
             VendorRawStaging(
                 batch_id=batch.batch_id,

@@ -307,7 +307,7 @@ class FinacleRawStaging(Base):
     raw_id = Column(Number, Sequence("seq_finacle_raw_staging"), primary_key=True)
     batch_id = Column(Number, ForeignKey("finacle_upload_batch.batch_id"), nullable=False)
     row_number = Column(Number, nullable=False)
-    row_payload = Column(Text, nullable=False)
+    row_payload = Column(String(4000), nullable=False)
     created_date = Column(DateTime, server_default=func.now(), nullable=False)
 
 
@@ -318,7 +318,7 @@ class FinacleInvalidRecord(Base):
     batch_id = Column(Number, ForeignKey("finacle_upload_batch.batch_id"), nullable=False)
     row_number = Column(Number, nullable=False)
     reason = Column(String(255), nullable=False)
-    row_payload = Column(Text, nullable=False)
+    row_payload = Column(String(4000), nullable=False)
     created_date = Column(DateTime, server_default=func.now(), nullable=False)
 
 
@@ -328,7 +328,7 @@ class VendorRawStaging(Base):
     raw_id = Column(Number, Sequence("seq_vendor_raw_staging"), primary_key=True)
     batch_id = Column(Number, ForeignKey("vendor_upload_batch.batch_id"), nullable=False)
     row_number = Column(Number, nullable=False)
-    row_payload = Column(Text, nullable=False)
+    row_payload = Column(String(4000), nullable=False)
     created_date = Column(DateTime, server_default=func.now(), nullable=False)
 
 
@@ -339,7 +339,7 @@ class VendorInvalidRecord(Base):
     batch_id = Column(Number, ForeignKey("vendor_upload_batch.batch_id"), nullable=False)
     row_number = Column(Number, nullable=False)
     reason = Column(String(255), nullable=False)
-    row_payload = Column(Text, nullable=False)
+    row_payload = Column(String(4000), nullable=False)
     created_date = Column(DateTime, server_default=func.now(), nullable=False)
 
 
@@ -435,13 +435,13 @@ class ApprovalRequest(Base):
     approval_id = Column(Number, Sequence("seq_approval_request"), primary_key=True)
     entity_type = Column(String(50), nullable=False)
     entity_id = Column(Number)
-    original_data = Column(Text, nullable=False)
-    proposed_data = Column(Text, nullable=False)
+    original_data = Column(String(4000), nullable=False)
+    proposed_data = Column(String(4000), nullable=False)
     reason = Column(String(255))
     maker_id = Column(String(50), nullable=False)
     checker_id = Column(String(50))
     checker_comment = Column(String(255))
-    comments_history = Column(Text)
+    comments_history = Column(String(4000))
     status = Column(String(20), nullable=False)
     created_date = Column(DateTime, server_default=func.now(), nullable=False)
     approved_date = Column(DateTime)
@@ -459,7 +459,7 @@ class ReconciliationCorrection(Base):
     correction_id = Column(Number, Sequence("seq_reconciliation_correction"), primary_key=True)
     recon_id = Column(Number, ForeignKey("reconciliation_results.recon_id"), nullable=False)
     approval_id = Column(Number, ForeignKey("approval_requests.approval_id"), nullable=False)
-    proposed_data = Column(Text, nullable=False)
+    proposed_data = Column(String(4000), nullable=False)
     status = Column(String(20), nullable=False)
     maker_id = Column(String(50), nullable=False)
     checker_id = Column(String(50))
@@ -478,8 +478,8 @@ class AuditLog(Base):
     entity_type = Column(String(50), nullable=False)
     entity_id = Column(Number)
     action = Column(String(50), nullable=False)
-    old_data = Column(Text)
-    new_data = Column(Text)
+    old_data = Column(String(4000))
+    new_data = Column(String(4000))
     changed_by = Column(String(50), nullable=False)
     changed_at = Column(DateTime, server_default=func.now(), nullable=False)
 

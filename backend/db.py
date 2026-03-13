@@ -3,13 +3,6 @@ import os
 # Force UTF-8 for Oracle CLOB/character data (fixes box chars on Oracle 19c)
 os.environ.setdefault("NLS_LANG", "AMERICAN_AMERICA.AL32UTF8")
 
-# Return CLOBs as strings (fixes preview/download on Windows where LOB.read() can fail)
-try:
-    import oracledb
-    oracledb.defaults.fetch_lobs = False
-except ImportError:
-    pass
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 

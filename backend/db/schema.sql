@@ -283,7 +283,7 @@ CREATE TABLE finacle_raw_staging (
   raw_id              NUMBER PRIMARY KEY,
   batch_id            NUMBER NOT NULL,
   row_number          NUMBER NOT NULL,
-  row_payload         CLOB NOT NULL,
+  row_payload         VARCHAR2(4000) NOT NULL,
   created_date        DATE DEFAULT SYSDATE NOT NULL,
   CONSTRAINT fk_finacle_raw_batch FOREIGN KEY (batch_id) REFERENCES finacle_upload_batch(batch_id)
 );
@@ -293,7 +293,7 @@ CREATE TABLE finacle_invalid_records (
   batch_id            NUMBER NOT NULL,
   row_number          NUMBER NOT NULL,
   reason              VARCHAR2(255) NOT NULL,
-  row_payload         CLOB NOT NULL,
+  row_payload         VARCHAR2(4000) NOT NULL,
   created_date        DATE DEFAULT SYSDATE NOT NULL,
   CONSTRAINT fk_finacle_invalid_batch FOREIGN KEY (batch_id) REFERENCES finacle_upload_batch(batch_id)
 );
@@ -302,7 +302,7 @@ CREATE TABLE vendor_raw_staging (
   raw_id              NUMBER PRIMARY KEY,
   batch_id            NUMBER NOT NULL,
   row_number          NUMBER NOT NULL,
-  row_payload         CLOB NOT NULL,
+  row_payload         VARCHAR2(4000) NOT NULL,
   created_date        DATE DEFAULT SYSDATE NOT NULL,
   CONSTRAINT fk_vendor_raw_batch FOREIGN KEY (batch_id) REFERENCES vendor_upload_batch(batch_id)
 );
@@ -312,7 +312,7 @@ CREATE TABLE vendor_invalid_records (
   batch_id            NUMBER NOT NULL,
   row_number          NUMBER NOT NULL,
   reason              VARCHAR2(255) NOT NULL,
-  row_payload         CLOB NOT NULL,
+  row_payload         VARCHAR2(4000) NOT NULL,
   created_date        DATE DEFAULT SYSDATE NOT NULL,
   CONSTRAINT fk_vendor_invalid_batch FOREIGN KEY (batch_id) REFERENCES vendor_upload_batch(batch_id)
 );
@@ -405,13 +405,13 @@ CREATE TABLE approval_requests (
   approval_id         NUMBER PRIMARY KEY,
   entity_type         VARCHAR2(50) NOT NULL,
   entity_id           NUMBER,
-  original_data       CLOB NOT NULL,
-  proposed_data       CLOB NOT NULL,
+  original_data       VARCHAR2(4000) NOT NULL,
+  proposed_data       VARCHAR2(4000) NOT NULL,
   reason              VARCHAR2(255),
   maker_id            VARCHAR2(50) NOT NULL,
   checker_id          VARCHAR2(50),
   checker_comment     VARCHAR2(255),
-  comments_history    CLOB,
+  comments_history    VARCHAR2(4000),
   status              VARCHAR2(20) NOT NULL,
   created_date        DATE DEFAULT SYSDATE NOT NULL,
   approved_date       DATE,
@@ -425,7 +425,7 @@ CREATE TABLE reconciliation_corrections (
   correction_id       NUMBER PRIMARY KEY,
   recon_id            NUMBER NOT NULL,
   approval_id         NUMBER NOT NULL,
-  proposed_data       CLOB NOT NULL,
+  proposed_data       VARCHAR2(4000) NOT NULL,
   status              VARCHAR2(20) NOT NULL,
   maker_id            VARCHAR2(50) NOT NULL,
   checker_id         VARCHAR2(50),
@@ -444,8 +444,8 @@ CREATE TABLE audit_log (
   entity_type         VARCHAR2(50) NOT NULL,
   entity_id           NUMBER,
   action              VARCHAR2(50) NOT NULL,
-  old_data            CLOB,
-  new_data            CLOB,
+  old_data            VARCHAR2(4000),
+  new_data            VARCHAR2(4000),
   changed_by          VARCHAR2(50) NOT NULL,
   changed_at          DATE DEFAULT SYSDATE NOT NULL
 );
