@@ -199,7 +199,7 @@ def reject_remittance(
         db.close()
         raise HTTPException(status_code=404, detail="Remittance not found")
     entry.status = "REJECTED"
-    proposed = safe_json_loads_clob(approval.proposed_data)
+    proposed = safe_json_loads_clob(approval.proposed_data, raise_on_error=False)
     entry.rejection_reason = proposed.get("rejection_reason")
     entry.approved_by = decision.checker_id
     entry.approved_date = datetime.utcnow()

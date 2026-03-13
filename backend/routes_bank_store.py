@@ -110,7 +110,7 @@ def approve_bank_store(
         db.close()
         raise HTTPException(status_code=404, detail="Store not found")
 
-    proposed = safe_json_loads_clob(approval.proposed_data)
+    proposed = safe_json_loads_clob(approval.proposed_data, raise_on_error=False)
     is_deactivate = proposed.get("action") == "DEACTIVATE"
 
     if is_deactivate:

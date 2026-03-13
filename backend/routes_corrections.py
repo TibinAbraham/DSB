@@ -131,7 +131,7 @@ def approve_correction(
         enforce_month_unlocked(db, base_date.strftime("%Y%m"))
 
     db.refresh(correction)  # Force load CLOB columns (helps Oracle on Windows)
-    proposed = safe_json_loads_clob(correction.proposed_data)
+    proposed = safe_json_loads_clob(correction.proposed_data, raise_on_error=False)
 
     if proposed.get("requested_action") == "AMOUNT_EDIT":
         details = proposed.get("details")

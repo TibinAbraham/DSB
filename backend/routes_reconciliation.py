@@ -160,7 +160,7 @@ def run_reconciliation(payload: dict, user: AuthUser = Depends(require_roles("MA
                 .first()
             )
             if correction_row:
-                proposed = safe_json_loads_clob(correction_row[0].proposed_data)
+                proposed = safe_json_loads_clob(correction_row[0].proposed_data, raise_on_error=False)
                 if proposed.get("requested_action") == "AMOUNT_EDIT":
                     has_approved_correction = True
 

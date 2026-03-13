@@ -62,9 +62,20 @@ def init_comment_history(maker_comment: str | None, maker_id: str) -> str:
 
 
 def append_comment_history(existing: str | None, role: str, user_id: str, comment: str) -> str:
-    history = safe_json_loads_clob(existing, default=[], raise_on_error=False)
-    if not isinstance(history, list):
-        history = []
+    history = []
+    if existing:
+        try:
+            # Handle Oracle CLOB on Windows - ensure string before json.loads
+            raw = existing
+            if hasattr(raw, "read"):
+                raw = raw.read()
+            s = (raw or "").strip() if raw is not None else ""
+            if s:
+                history = json.loads(s)
+            if not isinstance(history, list):
+                history = []
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            history = []
     history.append(
         {
             "role": role,

@@ -42,7 +42,7 @@ def list_mappings(
             if approval.entity_id not in approval_map:
                 approval_map[approval.entity_id] = approval.status
                 approval_id_map[approval.entity_id] = approval.approval_id
-                proposed = safe_json_loads_clob(approval.proposed_data)
+                proposed = safe_json_loads_clob(approval.proposed_data, raise_on_error=False)
                 approval_action[approval.entity_id] = proposed.get("action")
     result = [
         {
@@ -142,7 +142,7 @@ def approve_mapping(
         db.close()
         raise HTTPException(status_code=404, detail="Mapping not found")
 
-    proposed = safe_json_loads_clob(approval.proposed_data)
+    proposed = safe_json_loads_clob(approval.proposed_data, raise_on_error=False)
     action = proposed.get("action")
 
     if action == "DEACTIVATE":
